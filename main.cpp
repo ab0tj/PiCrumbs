@@ -4,11 +4,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "INIReader.cpp"
 using namespace std;
 
-class config{
-	string mycall;
-};
+string mycall;
 
 void showusage() {
 	fprintf(stderr, "Usage: aprstoolkit [-c CONFIGFILE]\n");
@@ -34,11 +33,11 @@ int main(int argc, char* argv[]) {
 
 	INIReader readconfig(configfile);	// read the config ini
 
-	if (readconfig.ParseError < 0) {
-		fprintf(stderr, "Error loading %s", configfile);
+	if (readconfig.ParseError() < 0) {
+		fprintf(stderr, "Error loading %s\n", configfile.c_str());
 		exit (EXIT_FAILURE);
 	}
 
-	config::mycall = readconfig.Get("station", "mycall", "N0CALL");
+	mycall = readconfig.Get("station", "mycall", "N0CALL");
 	
 }
