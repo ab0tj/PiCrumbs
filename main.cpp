@@ -25,7 +25,7 @@ int kiss_iface = -1;			// tnc serial port
 int gps_iface = -1;				// gps serial port
 float pos_lat;					// current latitude - positive N, negative S
 float pos_long;					// current longitude - positive W, negative E
-struct tm * gps_time;			// last time received from the gps (if enabled)
+struct tm * gps_time = new tm;			// last time received from the gps (if enabled)
 
 // BEGIN FUNCTIONS
 int get_baud(int baudint) {		// return a baudrate code from the baudrate int
@@ -182,7 +182,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 }	// END OF 'init'
 
-void gps_thread() {		// thread to listen to the incoming NMEA stream and update our position and time
+void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
 	string buff = "";
 	char * data = new char[1];
 
@@ -190,7 +190,7 @@ void gps_thread() {		// thread to listen to the incoming NMEA stream and update 
 		read(gps_iface, data, 1);
 		if (data[0] == '\n') {
 			if (buff.length() > 0) {
-				if (gps_debug) printf("%s\n", buff.c_str());
+				if (gps_debug) printf("GPS_IN: %s\n", buff.c_str());
 				if (buff.compare(0, 6, "$GPRMC") == 0) {
 					string params[12];
 					int current = 7;
@@ -200,7 +200,21 @@ void gps_thread() {		// thread to listen to the incoming NMEA stream and update 
 						params[a] = buff.substr(current, next - current);
 						current = next + 1;
 					}
-
+					if (params[1].compare("A") == 0) {
+						gps_time->tm_hour = atoi(params[0].substr(0,2).c_str());
+						gps_time->tm_min = atoi(params[0].substr(2,2).c_str());
+						gps_time->tm_sec = atoi(params[0].substr(4,2).c_str());
+						gps_time->tm_mday = atoi(params[8].substr(0,2).c_str());
+						gps_time->tm_mon = atoi(params[8].substr(2,2).c_str()) - 1;		// tm_mon is 0-11
+						gps_time->tm_year = atoi(params[8].substr(4,2).c_str()) + 100; 	// tm_year is "years since 1900"
+						pos_lat = atof(params[2].c_str());
+						if (params[3].compare("S") == 0) pos_lat = pos_lat * -1;
+						pos_long = atof(params[4].c_str());
+						if (params[5].compare("E") == 0) pos_long = pos_long * -1;
+						if (gps_debug) printf("GPS_DEBUG: looks like %f %f %s", pos_lat, pos_long, asctime(gps_time));
+					} else if (gps_debug) {
+						printf("GPS-DEBUG: data invalid.\n");
+					}
 				}
 				buff = "";
 			}
@@ -208,13 +222,21 @@ void gps_thread() {		// thread to listen to the incoming NMEA stream and update 
 			buff.append(1, data[0]);
 		}
 	}
+	return 0;
 }
 
 int main(int argc, char* argv[]) {
 
 	init(argc, argv);
 
-	if (gps_iface > 0) gps_thread();
+	if (gps_iface > 0) {
+		pthread_t gps_t;
+		pthread_create(&gps_t, NULL, &gps_thread, NULL);
+	}
+
+	while(true) {
+		sleep(600);
+	}
 
 	if (verbose) printf("Closing TNC interface\n");
 	close(kiss_iface);
