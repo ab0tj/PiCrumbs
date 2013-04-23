@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <vector>
 #include <pthread.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -12,12 +13,19 @@
 #include <hamlib/rig.h>
 #include "INIReader.cpp"
 
-#define VERSION "0.1"
+// DEFINES GO HERE
+#define VERSION "0.1"			// program version for messages, etc
+#define PACKET_DEST "APMGT1"	// packet tocall
+#define FEND 0xC0				// kiss frame end
+#define FESC 0xDB				// kiss frame escape
+#define TFEND 0xDC				// kiss transposed frame end
+#define TFESC 0xDD				// kiss transposed frame escape
 
 using namespace std;
 
 // GLOBAL VARS GO HERE
-string mycall;					// callsign we're operating under, including ssid
+string mycall;					// callsign we're operating under, excluding ssid
+char myssid;					// ssid of this station (stored as a number, not ascii)
 bool verbose = false;			// did the user ask for verbose mode?
 bool gps_debug = false;			// did the user ask for gps debug info?
 bool tnc_debug = false;			// did the user ask for tnc debug info?
@@ -25,7 +33,10 @@ int kiss_iface = -1;			// tnc serial port
 int gps_iface = -1;				// gps serial port
 float pos_lat;					// current latitude - positive N, negative S
 float pos_long;					// current longitude - positive W, negative E
-struct tm * gps_time = new tm;			// last time received from the gps (if enabled)
+struct tm * gps_time = new tm;	// last time received from the gps (if enabled)
+int static_beacon_rate;			// how often (in seconds) to send a beacon
+vector<string> via_calls;		// path callsigns
+vector<char>	via_ssids;		// path ssids
 
 // BEGIN FUNCTIONS
 int get_baud(int baudint) {		// return a baudrate code from the baudrate int
@@ -133,12 +144,69 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 	if (verbose) printf("Using config file %s\n", configfile.c_str());
 
-	mycall = readconfig.Get("station", "mycall", "N0CALL");
+	string call = readconfig.Get("station", "mycall", "N0CALL");	// parse the mycall config paramater
+	int index = call.find_first_of("-");
+	if (index == -1) {	// no ssid specified
+		mycall = call;
+		myssid = 0;
+	} else {			// ssid was specified
+		mycall = call.substr(0,index);	// left of the dash
+		myssid = atoi(call.substr(index+1,2).c_str());	// right of the dash
+	}
+	if (mycall.length() > 6) {
+		fprintf(stderr,"MYCALL: Station callsign must be 6 characters or less.\n");
+		exit (EXIT_FAILURE);
+	}
+	if (myssid < 0 or myssid > 15) {
+		fprintf(stderr,"MYCALL: Station SSID must be between 0 and 15.\n");
+		exit (EXIT_FAILURE);
+	}
+	if (verbose) printf("Operating as %s-%i\n", mycall.c_str(), myssid);		// whew, we made it through all the tests
+
 	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
 	string kiss_port = readconfig.Get("tnc", "port", "/dev/ttyS0");
 	int kiss_baud = readconfig.GetInteger("tnc", "baud", 9600);
 	string gps_port  = readconfig.Get("gps", "port", "/dev/ttyS1");
 	int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
+	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
+
+	string beacon_via_str = readconfig.Get("beacon", "via", "");		// now we get to parse the via paramater
+	int current;
+	int next = -1;
+	string this_call;
+	int this_ssid;
+	do {
+		current = next + 1;
+		next = beacon_via_str.find_first_of(",", current);
+		call = beacon_via_str.substr(current, next-current);
+		index = call.find_first_of("-");
+			if (index == -1) {	// no ssid specified
+				this_call = call;
+				this_ssid = 0;
+			} else {			// ssid was specified
+				this_call = call.substr(0,index);	// left of the dash
+				this_ssid = atoi(call.substr(index+1,2).c_str());	// right of the dash
+			}
+			if (this_call.length() > 6) {
+				fprintf(stderr,"VIA: Station callsign must be 6 characters or less.\n");
+				exit (EXIT_FAILURE);
+			}
+			if (this_ssid < 0 or myssid > 15) {
+				fprintf(stderr,"VIA: Station SSID must be between 0 and 15.\n");
+				exit (EXIT_FAILURE);
+			}
+			via_calls.push_back(this_call);		// input validation ok, add this to the via vectors
+			via_ssids.push_back(this_ssid);
+	} while (next != -1);
+	if (via_calls.size() > 8) {
+		fprintf(stderr,"VIA: Cannot have more than 8 digis in the path.\n");
+		exit (EXIT_FAILURE);
+	}
+	if (verbose) {
+		for (int i=0;i<via_calls.size();i++) {
+
+		}
+	}
 
 // OPEN KISS INTERFACE
 
@@ -179,8 +247,28 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 		if (verbose) printf("Successfully opened GPS port %s at %i baud\n", gps_port.c_str(), gps_baud);
 	}
-
+	if (verbose) printf("Init finished!\n\n");
 }	// END OF 'init'
+
+string ax25_callsign(char* callsign) {		// pad a callsign with spaces to 6 chars and shift chars to the left
+	char paddedcallsign[] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x00};	// start with a string of shifted spaces
+	for (int i=0;i<strlen(callsign);i++) {
+		callsign[i] <<= 1;		// shift all the chars in the input callsign
+	}
+	memcpy(paddedcallsign, callsign, strlen(callsign));		// copy the shifted callsign into our padded container
+	return paddedcallsign;
+}	// END OF 'ax25_callsign'
+
+void send_kiss_frame(char* source, int source_ssid, char* destination, int destination_ssid, vector<string> via, int via_ssids[], bool via_hbits[], char payload) {		// send a KISS packet to the TNC
+	// we'll build the ax25 frame first and then add the kiss encapsulation
+	string frame = ax25_callsign(destination);		// add destination address
+	char ssid = (destination_ssid << 1);			// shift destination ssid
+	ssid |= 0x60;									// set c bits
+	frame.append(1, ssid);							// add ssid byte
+	frame.append(ax25_callsign(source));			// add source address
+	ssid = (source_ssid << 1);						// shift source ssid
+
+}	// END OF 'send_kiss_frame'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
 	string buff = "";
@@ -188,14 +276,14 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 
 	while (true) {
 		read(gps_iface, data, 1);
-		if (data[0] == '\n') {
-			if (buff.length() > 0) {
+		if (data[0] == '\n') {			// NMEA data is terminated with a newline.
+			if (buff.length() > 0) {	// but let's not bother if this was a blank line
 				if (gps_debug) printf("GPS_IN: %s\n", buff.c_str());
-				if (buff.compare(0, 6, "$GPRMC") == 0) {
+				if (buff.compare(0, 6, "$GPRMC") == 0) {	// GPRMC has most of the info we care about
 					string params[12];
 					int current = 7;
 					int next;
-					for (int a=0; a<12; a++) {
+					for (int a=0; a<12; a++) {		// here we'll split the fields of the GPRMC sentence
 						next = buff.find_first_of(',', current);
 						params[a] = buff.substr(current, next - current);
 						current = next + 1;
@@ -211,19 +299,26 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 						if (params[3].compare("S") == 0) pos_lat = pos_lat * -1;
 						pos_long = atof(params[4].c_str());
 						if (params[5].compare("E") == 0) pos_long = pos_long * -1;
-						if (gps_debug) printf("GPS_DEBUG: looks like %f %f %s", pos_lat, pos_long, asctime(gps_time));
+						if (gps_debug) printf("GPS_DEBUG: Lat: %f Long: %f Time: %s", pos_lat, pos_long, asctime(gps_time));
 					} else if (gps_debug) {
-						printf("GPS-DEBUG: data invalid.\n");
+						printf("GPS_DEBUG: data invalid.\n");
 					}
 				}
-				buff = "";
+				buff = "";		// clear the buffer
 			}
 		} else {
-			buff.append(1, data[0]);
+			buff.append(1, data[0]);	// this wasn't a newline so just add it to the buffer.
 		}
 	}
 	return 0;
-}
+} // END 'gps_thread'
+
+void* beacon_thread(void*) {	// send a beacon periodically
+	while (true) {
+
+	}
+	return 0;
+} // END 'beacon_thread'
 
 int main(int argc, char* argv[]) {
 
