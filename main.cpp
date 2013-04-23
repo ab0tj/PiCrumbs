@@ -16,10 +16,6 @@
 // DEFINES GO HERE
 #define VERSION "0.1"			// program version for messages, etc
 #define PACKET_DEST "APMGT1"	// packet tocall
-#define FEND 0xC0				// kiss frame end
-#define FESC 0xDB				// kiss frame escape
-#define TFEND 0xDC				// kiss transposed frame end
-#define TFESC 0xDD				// kiss transposed frame escape
 
 using namespace std;
 
@@ -262,28 +258,32 @@ string ax25_callsign(const char* callsign) {		// pad a callsign with spaces to 6
 	return paddedcallsign;
 }	// END OF 'ax25_callsign'
 
-char ax25_ssid(char ssid, bool hbit) {
+char ax25_ssid(char ssid, bool hbit, bool last) {
 	ssid <<= 1;			// shift ssid
-	ssid |= 0x60;		// set c bits
-	ssid |= hbit;		// set h bit
+	if (hbit) {			// set h and c bits
+		ssid |= 0xE0;	// 11100000
+	} else {
+		ssid |= 0x60;	// 01100000
+	}
+	ssid |= last;		// set address end bit
 	return ssid;
 }
 
 void send_kiss_frame(char* source, int source_ssid, char* destination, int destination_ssid, vector<string> via, vector<int>via_ssids, vector<bool>via_hbits, string payload) {		// send a KISS packet to the TNC
 	// we'll build the ax25 frame before adding the kiss encapsulation
 	string buff = ax25_callsign(destination);					// add destination address
-	buff.append(1, ax25_ssid(destination_ssid, false));			// add destination ssid
+	buff.append(1, ax25_ssid(destination_ssid, false, false));	// add destination ssid
 	buff.append(ax25_callsign(source));							// add source address
 	if (via.size() == 0) {
-		buff.append(1, ax25_ssid(source_ssid, true));			// no path, add source ssid and set hbit
+		buff.append(1, ax25_ssid(source_ssid, false, true));	// no path, add source ssid and end the address field
 	} else {
-		buff.append(1, ax25_ssid(source_ssid, false));			// path to follow, don't set hbit on source ssid
+		buff.append(1, ax25_ssid(source_ssid, false, false));	// path to follow, don't end the address field just yet
 		for (int i=0;i<(via.size()-1);i++) {					// loop thru all via calls except the last
 			buff.append(ax25_callsign(via[i].c_str()));			// add this via callsign
-			buff.append(1, ax25_ssid(via_ssids[i], false));		// add this via ssid, hbit not set
+			buff.append(1, ax25_ssid(via_ssids[i], via_hbits[i], false)); // add this via ssid
 		}
 		buff.append(ax25_callsign(via[via.size()-1].c_str()));	// finally made it to the last via call
-		buff.append(1,ax25_ssid(via_ssids[via_ssids.size()-1], true));	// set the hbit for this one
+		buff.append(1,ax25_ssid(via_ssids[via_ssids.size()-1], via_hbits[via_hbits.size()-1], true));	// end the address field
 	}
 	buff.append("\x03\xF0");									// add control and pid bytes (ui frame)
 	buff.append(payload);										// add the actual data
@@ -293,6 +293,7 @@ void send_kiss_frame(char* source, int source_ssid, char* destination, int desti
 	buff.insert(0,"\xC0\x00");									// add kiss header
 	buff.append(1,0xC0);										// add kiss footer
 	write(kiss_iface,buff.c_str(),buff.length());				// spit this out the kiss interface
+	if (tnc_debug) printf("%s-%i to %s-%i via %i digis: %s\n", source, source_ssid, destination, destination_ssid, via.size(), payload.c_str());
 }	// END OF 'send_kiss_frame'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
@@ -349,18 +350,18 @@ void* beacon_thread(void*) {	// send a beacon periodically	TODO: this.
 
 int main(int argc, char* argv[]) {
 
-	init(argc, argv);
+	init(argc, argv);	// get everything ready to go
 
-	if (gps_iface > 0) {
+	if (gps_iface > 0) {	// start the gps interface thread if the gps interface was opened
 		pthread_t gps_t;
 		pthread_create(&gps_t, NULL, &gps_thread, NULL);
 	}
 
-	while(true) {
+	while(true) {	// let the threads do their thing
 		sleep(600);
 	}
 
-	if (verbose) printf("Closing TNC interface\n");
+	if (verbose) printf("Closing TNC interface\n");		// clean up
 	close(kiss_iface);
 	if (verbose) printf("Closing GPS interface\n");
 	close(gps_iface);
