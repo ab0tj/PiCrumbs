@@ -4,36 +4,50 @@
 #include <vector>
 #include <pthread.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <errno.h>
+#include <signal.h>
 #include <time.h>
-#include <hamlib/rig.h>
+//#include <hamlib/rig.h>	TODO: rig control
 #include "INIReader.cpp"
 
 // DEFINES GO HERE
-#define VERSION "0.1"			// program version for messages, etc
-#define PACKET_DEST "APMGT1"	// packet tocall
+#define VERSION "0.1"				// program version for messages, etc
+#define PACKET_DEST "APMGT1"		// packet tocall
 
 using namespace std;
 
 // GLOBAL VARS GO HERE
-string mycall;					// callsign we're operating under, excluding ssid
-char myssid;					// ssid of this station (stored as a number, not ascii)
-bool verbose = false;			// did the user ask for verbose mode?
-bool gps_debug = false;			// did the user ask for gps debug info?
-bool tnc_debug = false;			// did the user ask for tnc debug info?
-int kiss_iface = -1;			// tnc serial port
-int gps_iface = -1;				// gps serial port
-bool beacon_ok = false;			// should we be sending beacons?
-float pos_lat;					// current latitude - positive N, negative S
-float pos_long;					// current longitude - positive W, negative E
-struct tm * gps_time = new tm;	// last time received from the gps (if enabled)
-int static_beacon_rate;			// how often (in seconds) to send a beacon
-vector<string> path_calls;		// path callsigns
-vector<char> path_ssids;		// path ssids
+string mycall;						// callsign we're operating under, excluding ssid
+char myssid;						// ssid of this station (stored as a number, not ascii)
+string symbol_table;				// which symbol table to use
+string symbol_char;					// which symbol to use from the table
+int sb_low_speed;					// SmartBeaconing low threshold, in mph
+int sb_low_rate;					// SmartBeaconing low rate
+int sb_high_speed;					// SmartBeaconing high threshold, in mph
+int sb_high_rate;					// SmartBeaconing high rate
+int sb_turn_min;					// SmartBeaconing turn minimum
+int sb_turn_time;					// SmartBeaconing turn time (minimum)
+int sb_turn_slope;					// SmartBeaconing turn slope
+bool verbose = false;				// did the user ask for verbose mode?
+bool gps_debug = false;				// did the user ask for gps debug info?
+bool tnc_debug = false;				// did the user ask for tnc debug info?
+int kiss_iface = -1;				// tnc serial port fd
+int gps_iface = -1;					// gps serial port fd
+bool beacon_ok = false;				// should we be sending beacons?
+float pos_lat;						// current latitude
+string pos_lat_dir;					// latitude direction
+float pos_long;						// current longitude
+string pos_long_dir;				// current longitude direction
+struct tm * gps_time = new tm;		// last time received from the gps (if enabled)
+float gps_speed;					// speed from gps, in mph
+int gps_hdg;						// heading from gps
+int static_beacon_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+string beacon_comment;				// comment to send along with aprs packets
+vector<string> path_calls;			// path callsigns
+vector<char> path_ssids;			// path ssids
 
 // BEGIN FUNCTIONS
 void find_and_replace(string& subject, const string& search, const string& replace) {	// find and replace in a string, thanks Czarek Tomczak
@@ -104,7 +118,8 @@ int open_port(string port, int baud_code) {					// open a serial port
 	options.c_lflag = ICANON;								// canonical mode
 	options.c_oflag &= ~OPOST;								// raw output
 	tcsetattr(iface, TCSANOW, &options);					// set the new options for the port
-	fcntl(iface, F_SETFL, 0);								// set port to blocking reads
+	fcntl(iface, F_SETFL, 0);							// set port to nonblocking reads
+	tcflush(iface, TCIOFLUSH);								// flush buffer
 	return iface;											// return the file number
 }	// END OF 'open_port'
 
@@ -173,18 +188,18 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	int kiss_baud = readconfig.GetInteger("tnc", "baud", 9600);
 	string gps_port  = readconfig.Get("gps", "port", "/dev/ttyS1");
 	int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
-	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 
 	string beacon_via_str = readconfig.Get("beacon", "via", "");		// now we get to parse the via paramater
-	int current;
-	int next = -1;
-	string this_call;
-	int this_ssid;
-	do {
-		current = next + 1;
-		next = beacon_via_str.find_first_of(",", current);
-		call = beacon_via_str.substr(current, next-current);
-		index = call.find_first_of("-");
+	if (beacon_via_str.length() > 0) {
+		int current;
+		int next = -1;
+		string this_call;
+		int this_ssid;
+		do {
+			current = next + 1;
+			next = beacon_via_str.find_first_of(",", current);
+			call = beacon_via_str.substr(current, next-current);
+			index = call.find_first_of("-");
 			if (index == -1) {	// no ssid specified
 				this_call = call;
 				this_ssid = 0;
@@ -202,11 +217,24 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			}
 			path_calls.push_back(this_call);		// input validation ok, add this to the via vectors
 			path_ssids.push_back(this_ssid);
-	} while (next != -1);
-	if (path_calls.size() > 8) {
-		fprintf(stderr,"VIA: Cannot have more than 8 digis in the path.\n");
-		exit (EXIT_FAILURE);
+		} while (next != -1);
+		if (path_calls.size() > 8) {
+			fprintf(stderr,"VIA: Cannot have more than 8 digis in the path.\n");
+			exit (EXIT_FAILURE);
+		}
 	}
+	beacon_comment = readconfig.Get("beacon", "comment", "");
+	symbol_table = readconfig.Get("beacon", "symbol_table", "/");
+	symbol_char = readconfig.Get("beacon", "symbol", "/");
+	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
+	sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
+	sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
+	sb_high_speed = readconfig.GetInteger("beacon", "sb_high_speed", 60);
+	sb_high_rate = readconfig.GetInteger("beacon", "sb_high_rate", 180);
+	sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
+	sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
+	sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
+
 // OPEN KISS INTERFACE
 
 	// no 'if' here, since this would be pointless without a TNC
@@ -245,7 +273,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		}
 
 		if (verbose) printf("Successfully opened GPS port %s at %i baud\n", gps_port.c_str(), gps_baud);
-	}
+	} else beacon_ok = true;	// gps not enabled, use static beacons
 	if (verbose) printf("Init finished!\n\n");
 }	// END OF 'init'
 
@@ -258,7 +286,7 @@ string ax25_callsign(const char* callsign) {		// pad a callsign with spaces to 6
 	return paddedcallsign;
 }	// END OF 'ax25_callsign'
 
-char ax25_ssid(char ssid, bool hbit, bool last) {
+char ax25_ssid(char ssid, bool hbit, bool last) {	// format an ax25 ssid byte
 	ssid <<= 1;			// shift ssid
 	if (hbit) {			// set h and c bits
 		ssid |= 0xE0;	// 11100000
@@ -269,7 +297,7 @@ char ax25_ssid(char ssid, bool hbit, bool last) {
 	return ssid;
 }
 
-void send_kiss_frame(char* source, int source_ssid, char* destination, int destination_ssid, vector<string> via, vector<int>via_ssids, vector<bool>via_hbits, string payload) {		// send a KISS packet to the TNC
+void send_kiss_frame(const char* source, int source_ssid, const char* destination, int destination_ssid, vector<string> via, vector<char>via_ssids, string payload, vector<bool>via_hbits = vector<bool>()) {		// send a KISS packet to the TNC
 	// we'll build the ax25 frame before adding the kiss encapsulation
 	string buff = ax25_callsign(destination);					// add destination address
 	buff.append(1, ax25_ssid(destination_ssid, false, false));	// add destination ssid
@@ -277,6 +305,11 @@ void send_kiss_frame(char* source, int source_ssid, char* destination, int desti
 	if (via.size() == 0) {
 		buff.append(1, ax25_ssid(source_ssid, false, true));	// no path, add source ssid and end the address field
 	} else {
+		if (via_hbits.size() == 0) {							// via_hbits was not specified, fill it with zeros
+			for (int i=0;i<via.size();i++) {
+				via_hbits.push_back(false);
+			}
+		}
 		buff.append(1, ax25_ssid(source_ssid, false, false));	// path to follow, don't end the address field just yet
 		for (int i=0;i<(via.size()-1);i++) {					// loop thru all via calls except the last
 			buff.append(ax25_callsign(via[i].c_str()));			// add this via callsign
@@ -290,11 +323,20 @@ void send_kiss_frame(char* source, int source_ssid, char* destination, int desti
 	// now we can escape any FENDs and FESCs that appear in the ax25 frame and add kiss encapsulation
 	find_and_replace(buff,"\xC0","\xDB\xDC");					// replace any FENDs with FESC,TFEND
 	find_and_replace(buff,"\xDB","\xDB\xDD");					// replace any FESCs with FESC,TFESC
-	buff.insert(0,"\xC0\x00");									// add kiss header
+	buff.insert(0,"\xC0\x00",2);								// add kiss header
 	buff.append(1,0xC0);										// add kiss footer
 	write(kiss_iface,buff.c_str(),buff.length());				// spit this out the kiss interface
-	if (tnc_debug) printf("%s-%i to %s-%i via %i digis: %s\n", source, source_ssid, destination, destination_ssid, via.size(), payload.c_str());
+	if (tnc_debug) printf("TNC_OUT: %s-%i to %s-%i via %i digis: %s\n", source, source_ssid, destination, destination_ssid, via.size(), payload.c_str());
 }	// END OF 'send_kiss_frame'
+
+void send_pos_report() {		// exactly what it sounds like
+	char* pos = new char[21];
+	sprintf(pos, "!%.2f%s%s%.2f%s%s", pos_lat, pos_lat_dir.c_str(), symbol_table.c_str(), pos_long, pos_long_dir.c_str(), symbol_char.c_str());
+	string buff = pos;
+	buff.append(beacon_comment);
+	delete pos;
+	send_kiss_frame(mycall.c_str(), myssid, PACKET_DEST, 0, path_calls, path_ssids, buff);
+}	// END OF 'send_pos_report'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
 	string buff = "";
@@ -323,10 +365,12 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 						gps_time->tm_mon = atoi(params[8].substr(2,2).c_str()) - 1;		// tm_mon is 0-11
 						gps_time->tm_year = atoi(params[8].substr(4,2).c_str()) + 100; 	// tm_year is "years since 1900"
 						pos_lat = atof(params[2].c_str());
-						if (params[3].compare("S") == 0) pos_lat = pos_lat * -1;
+						pos_lat_dir = params[3];
 						pos_long = atof(params[4].c_str());
-						if (params[5].compare("E") == 0) pos_long = pos_long * -1;
-						if (gps_debug) printf("GPS_DEBUG: Lat: %f Long: %f Time: %s", pos_lat, pos_long, asctime(gps_time));
+						pos_long_dir = params[5];
+						gps_speed = atof(params[6].c_str()) * 1.15078;	// speed from gps is in knots
+						gps_hdg = atoi(params[7].c_str());
+						if (gps_debug) printf("GPS_DEBUG: Lat: %f%s Long: %f%s MPH: %f Time: %s", pos_lat, pos_lat_dir.c_str(), pos_long, pos_long_dir.c_str(), gps_speed, asctime(gps_time));
 					} else {
 						beacon_ok = false;
 						if (gps_debug) printf("GPS_DEBUG: data invalid.\n");
@@ -341,30 +385,53 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 	return 0;
 } // END 'gps_thread'
 
-void* beacon_thread(void*) {	// send a beacon periodically	TODO: this.
-	while (true) {
-		sleep(1);
-	}
-	return 0;
-} // END 'beacon_thread'
-
-int main(int argc, char* argv[]) {
-
-	init(argc, argv);	// get everything ready to go
-
-	if (gps_iface > 0) {	// start the gps interface thread if the gps interface was opened
-		pthread_t gps_t;
-		pthread_create(&gps_t, NULL, &gps_thread, NULL);
-	}
-
-	while(true) {	// let the threads do their thing
-		sleep(600);
-	}
-
-	if (verbose) printf("Closing TNC interface\n");		// clean up
+void cleanup(int sign) {	// clean up after catching ctrl-c
+	if (verbose) printf("Closing TNC interface\n");
 	close(kiss_iface);
 	if (verbose) printf("Closing GPS interface\n");
 	close(gps_iface);
+	exit (EXIT_SUCCESS);
+} // END OF 'cleanup'
+
+int main(int argc, char* argv[]) {
+
+	signal(SIGINT,&cleanup);	// catch ctrl-c
+
+	init(argc, argv);	// get everything ready to go
+
+	if (gps_iface > 0) {
+		pthread_t gps_t;
+		pthread_create(&gps_t, NULL, &gps_thread, NULL);	// start the gps interface thread if the gps interface was opened
+	}
+
+	int beacon_rate = static_beacon_rate;
+	float turn_threshold;
+	int last_hdg;
+	int hdg_change;
+	int beacon_timer = beacon_rate;			// send startup beacon
+	while (true) {							// then send them periodically after that
+		if (beacon_timer >= beacon_rate) {	// if it's time...
+			while (!beacon_ok) sleep (1);	// wait if gps data not valid
+			send_pos_report();				// send a beacon
+			beacon_timer = 0;
+		}
+
+		if (static_beacon_rate == 0) {		// here we will implement SmartBeaconing(tm) from HamHUD.net
+			if (gps_speed < sb_low_speed) {	// see http://www.hamhud.net/hh2/smartbeacon.html for more info
+				beacon_rate = sb_low_rate;
+			} else if (gps_speed > sb_high_speed) {
+				beacon_rate = sb_high_rate;
+			} else {
+				beacon_rate = sb_high_rate * sb_high_speed / gps_speed;
+			}
+			turn_threshold = sb_turn_min + sb_turn_slope / gps_speed;
+			hdg_change += gps_hdg - last_hdg;
+			if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time) beacon_timer = beacon_rate;
+		}
+
+		sleep(1);
+		beacon_timer++;
+	}
 
 	return 0;
 
