@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <time.h>
+#include <cmath>
 //#include <hamlib/rig.h>	TODO: rig control
 #include "INIReader.cpp"
 
@@ -22,6 +23,7 @@ using namespace std;
 // GLOBAL VARS GO HERE
 string mycall;						// callsign we're operating under, excluding ssid
 char myssid;						// ssid of this station (stored as a number, not ascii)
+bool compress_pos;					// should we compress the aprs packet?
 string symbol_table;				// which symbol table to use
 string symbol_char;					// which symbol to use from the table
 int sb_low_speed;					// SmartBeaconing low threshold, in mph
@@ -34,6 +36,7 @@ int sb_turn_slope;					// SmartBeaconing turn slope
 bool verbose = false;				// did the user ask for verbose mode?
 bool gps_debug = false;				// did the user ask for gps debug info?
 bool tnc_debug = false;				// did the user ask for tnc debug info?
+bool sb_debug = false;				// did the user ask for smartbeaconing info?
 int kiss_iface = -1;				// tnc serial port fd
 int gps_iface = -1;					// gps serial port fd
 bool beacon_ok = false;				// should we be sending beacons?
@@ -42,7 +45,7 @@ string pos_lat_dir;					// latitude direction
 float pos_long;						// current longitude
 string pos_long_dir;				// current longitude direction
 struct tm * gps_time = new tm;		// last time received from the gps (if enabled)
-float gps_speed;					// speed from gps, in mph
+float gps_speed;					// speed from gps, in knots
 int gps_hdg;						// heading from gps
 int static_beacon_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 string beacon_comment;				// comment to send along with aprs packets
@@ -141,7 +144,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				break;
 			case 'z':		// user wants debug info	TODO: should this be documented?
 				if (strcmp(optarg, "gps") == 0) gps_debug = true;
-				if (strcmp(optarg, "tnc") == 0) tnc_debug = true;
+				else if (strcmp(optarg, "tnc") == 0) tnc_debug = true;
+				else if (strcmp(optarg, "sb") == 0) sb_debug = true;
 				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
 				fprintf(stderr, "Usage: aprstoolkit [-v] [-c CONFIGFILE]\n\n");
@@ -224,6 +228,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		}
 	}
 	beacon_comment = readconfig.Get("beacon", "comment", "");
+	compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
 	symbol_table = readconfig.Get("beacon", "symbol_table", "/");
 	symbol_char = readconfig.Get("beacon", "symbol", "/");
 	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
@@ -331,7 +336,39 @@ void send_kiss_frame(const char* source, int source_ssid, const char* destinatio
 
 void send_pos_report() {		// exactly what it sounds like
 	char* pos = new char[21];
-	sprintf(pos, "!%.2f%s%s%.2f%s%s", pos_lat, pos_lat_dir.c_str(), symbol_table.c_str(), pos_long, pos_long_dir.c_str(), symbol_char.c_str());
+	if (compress_pos) {		// build compressed position report, yes, byte by byte.
+		pos[0] = 0x21;
+		pos[1] = symbol_table[0];
+		float lat;
+		float lon;
+		float lat_min = modf(pos_lat/100, &lat);	// separate deg and min
+		float lon_min = modf(pos_long/100, &lon);
+		lat += (lat_min/.6);	// convert min to deg and re-add it
+		lon += (lon_min/.6);
+		if (strcmp(pos_lat_dir.c_str(), "S") == 0) lat = -lat;	// assign direction sign
+		if (strcmp(pos_long_dir.c_str(), "W") == 0) lon = -lon;
+		lat = 380926 * (90 - lat);		// formula from aprs spec
+		lon = 190463 * (180 + lon);
+		pos[2] = (int)lat / 753571 + 33;	// lat/91^3+33
+		lat = (int)lat % 753571;			// remainder
+		pos[3] = (int)lat / 8281 + 33;		// remainder/91^2+33
+		lat = (int)lat % 8281;				// remainder
+		pos[4] = (int)lat / 91 + 33;		// remainder/91^1+33
+		pos[5] = (int)lat % 91 + 33;		// remainder + 33
+		pos[6] = (int)lon / 753571 + 33;
+		lon = (int)lon % 753571;
+		pos[7] = (int)lon / 8281 + 33;
+		lon = (int)lon % 8281;
+		pos[8] = (int)lon / 91 + 33;
+		pos[9] = (int)lon % 91 + 33;
+		pos[10] = symbol_char[0];
+		pos[11] = gps_hdg / 4 + 33;
+		pos[12] = (int)pow(gps_speed, 1.08 - 1) + 33;
+		pos[13] = 0x5F;
+		pos[14] = 0x00;
+	} else {
+		sprintf(pos, "!%.2f%s%s%.2f%s%s", pos_lat, pos_lat_dir.c_str(), symbol_table.c_str(), pos_long, pos_long_dir.c_str(), symbol_char.c_str());
+	}
 	string buff = pos;
 	buff.append(beacon_comment);
 	delete pos;
@@ -346,7 +383,7 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 		read(gps_iface, data, 1);
 		if (data[0] == '\n') {			// NMEA data is terminated with a newline.
 			if (buff.length() > 6) {	// but let's not bother if this was an incomplete line
-				if (gps_debug) printf("GPS_IN: %s\n", buff.c_str());
+				//if (gps_debug) printf("GPS_IN: %s\n", buff.c_str());
 				if (buff.compare(0, 6, "$GPRMC") == 0) {	// GPRMC has most of the info we care about
 					string params[12];
 					int current = 7;
@@ -368,9 +405,9 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 						pos_lat_dir = params[3];
 						pos_long = atof(params[4].c_str());
 						pos_long_dir = params[5];
-						gps_speed = atof(params[6].c_str()) * 1.15078;	// speed from gps is in knots
+						gps_speed = atof(params[6].c_str());
 						gps_hdg = atoi(params[7].c_str());
-						if (gps_debug) printf("GPS_DEBUG: Lat: %f%s Long: %f%s MPH: %f Time: %s", pos_lat, pos_lat_dir.c_str(), pos_long, pos_long_dir.c_str(), gps_speed, asctime(gps_time));
+						if (gps_debug) printf("GPS_DEBUG: Lat:%f%s Long:%f%s MPH:%f Hdg:%i Time:%s", pos_lat, pos_lat_dir.c_str(), pos_long, pos_long_dir.c_str(), gps_speed, gps_hdg, asctime(gps_time));
 					} else {
 						beacon_ok = false;
 						if (gps_debug) printf("GPS_DEBUG: data invalid.\n");
@@ -404,30 +441,37 @@ int main(int argc, char* argv[]) {
 		pthread_create(&gps_t, NULL, &gps_thread, NULL);	// start the gps interface thread if the gps interface was opened
 	}
 
+	sleep (1);	// let everything 'settle'
+
 	int beacon_rate = static_beacon_rate;
-	float turn_threshold;
-	int last_hdg;
-	int hdg_change;
+	float turn_threshold = 0;
+	int last_hdg = gps_hdg;
+	int hdg_change = 0;
+	float speed;
 	int beacon_timer = beacon_rate;			// send startup beacon
 	while (true) {							// then send them periodically after that
 		if (beacon_timer >= beacon_rate) {	// if it's time...
 			while (!beacon_ok) sleep (1);	// wait if gps data not valid
 			send_pos_report();				// send a beacon
 			beacon_timer = 0;
+			hdg_change = 0;
 		}
 
 		if (static_beacon_rate == 0) {		// here we will implement SmartBeaconing(tm) from HamHUD.net
-			if (gps_speed < sb_low_speed) {	// see http://www.hamhud.net/hh2/smartbeacon.html for more info
+			speed = gps_speed  * 1.15078;	// convert knots to mph
+			if (speed < sb_low_speed) {	// see http://www.hamhud.net/hh2/smartbeacon.html for more info
 				beacon_rate = sb_low_rate;
-			} else if (gps_speed > sb_high_speed) {
+			} else if (speed > sb_high_speed) {
 				beacon_rate = sb_high_rate;
 			} else {
-				beacon_rate = sb_high_rate * sb_high_speed / gps_speed;
+				beacon_rate = sb_high_rate * sb_high_speed / speed;
 			}
-			turn_threshold = sb_turn_min + sb_turn_slope / gps_speed;
+			turn_threshold = sb_turn_min + sb_turn_slope / speed;
 			hdg_change += gps_hdg - last_hdg;
+			last_hdg = gps_hdg;
 			if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time) beacon_timer = beacon_rate;
 		}
+		if (sb_debug) printf("SB_DEBUG: Rate:%i Timer:%i HdgChg:%i Thres:%f\n", beacon_rate, beacon_timer, hdg_change, turn_threshold);
 
 		sleep(1);
 		beacon_timer++;
