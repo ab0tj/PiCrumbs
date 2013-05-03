@@ -1,0 +1,26 @@
+[station]
+mycall = N0CALL-9
+
+[tnc]
+port = /dev/ttyS0
+baud = 9600
+
+[gps]
+enable = true
+port = /dev/ttyS1
+baud = 4800
+
+[beacon]
+compressed = false
+via = WIDE1-1,WIDE2-1
+symbol_table = /
+symbol = -
+comment = APRSToolkit
+static_rate = 0
+sb_low_speed = 5
+sb_low_rate = 900
+sb_high_speed = 60
+sb_high_rate = 180
+sb_turn_min = 30
+sb_turn_time = 15
+sb_turn_slope = 255
