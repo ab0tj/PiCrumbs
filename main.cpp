@@ -37,7 +37,8 @@ bool verbose = false;				// did the user ask for verbose mode?
 bool gps_debug = false;				// did the user ask for gps debug info?
 bool tnc_debug = false;				// did the user ask for tnc debug info?
 bool sb_debug = false;				// did the user ask for smartbeaconing info?
-int kiss_iface = -1;				// tnc serial port fd
+int kiss_vhf_iface = -1;			// vhf tnc serial port fd
+int kiss_hf_iface = -1;				// hf tnc serial port fd
 int gps_iface = -1;					// gps serial port fd
 bool beacon_ok = false;				// should we be sending beacons?
 float pos_lat;						// current latitude
@@ -106,7 +107,7 @@ int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	}
 }	// END OF 'get_baud'
 
-int open_port(string port, int baud_code) {					// open a serial port
+int open_port(string port, int baud_code, bool blocking) {			// open a serial port
 	struct termios options;
 	int iface = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);	// open the port
 	if (iface == -1) return -1;								// failed to open port
@@ -118,10 +119,14 @@ int open_port(string port, int baud_code) {					// open a serial port
 	options.c_cflag &= ~CSIZE;								// turn off 'csize'
 	options.c_cflag |= CS8;									// 8 bit data
 	options.c_cflag |= (CLOCAL | CREAD);					// enable the receiver and set local mode
-	options.c_lflag = ICANON;								// canonical mode
+	options.c_lflag &= ~ICANON;								// raw input
 	options.c_oflag &= ~OPOST;								// raw output
 	tcsetattr(iface, TCSANOW, &options);					// set the new options for the port
-	fcntl(iface, F_SETFL, 0);							// set port to nonblocking reads
+	if (blocking) {
+		fcntl(iface, F_SETFL, 0);							// blocking reads
+	} else {
+		fcntl(iface, F_SETFL, FNDELAY);						// set port to nonblocking reads
+	}
 	tcflush(iface, TCIOFLUSH);								// flush buffer
 	return iface;											// return the file number
 }	// END OF 'open_port'
@@ -251,9 +256,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		exit (EXIT_FAILURE);
 	}
 
-	kiss_iface = open_port(kiss_port, baud_code);
+	kiss_vhf_iface = open_port(kiss_port, baud_code, false);	// use nonblocking reads for soundmodem compatibility
 
-	if (kiss_iface == -1) {		// couldn't open the serial port...
+	if (kiss_vhf_iface == -1) {		// couldn't open the serial port...
 		fprintf(stderr, "Could not open KISS port %s\n", kiss_port.c_str());
 		exit (EXIT_FAILURE);
 	}
@@ -270,7 +275,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			exit (EXIT_FAILURE);
 		}
 
-		gps_iface = open_port(gps_port, baud_code);
+		gps_iface = open_port(gps_port, baud_code, true);	// blocking reads work here
 
 		if (gps_iface == -1) {
 			fprintf(stderr, "Could not open GPS port %s\n", gps_port.c_str());
@@ -326,18 +331,18 @@ void send_kiss_frame(const char* source, int source_ssid, const char* destinatio
 	buff.append("\x03\xF0");									// add control and pid bytes (ui frame)
 	buff.append(payload);										// add the actual data
 	// now we can escape any FENDs and FESCs that appear in the ax25 frame and add kiss encapsulation
-	find_and_replace(buff,"\xC0","\xDB\xDC");					// replace any FENDs with FESC,TFEND
 	find_and_replace(buff,"\xDB","\xDB\xDD");					// replace any FESCs with FESC,TFESC
+	find_and_replace(buff,"\xC0","\xDB\xDC");					// replace any FENDs with FESC,TFEND
 	buff.insert(0,"\xC0\x00",2);								// add kiss header
 	buff.append(1,0xC0);										// add kiss footer
-	write(kiss_iface,buff.c_str(),buff.length());				// spit this out the kiss interface
+	write(kiss_vhf_iface,buff.c_str(),buff.length());				// spit this out the kiss interface
 	if (tnc_debug) printf("TNC_OUT: %s-%i to %s-%i via %i digis: %s\n", source, source_ssid, destination, destination_ssid, via.size(), payload.c_str());
 }	// END OF 'send_kiss_frame'
 
 void send_pos_report() {		// exactly what it sounds like
 	char* pos = new char[21];
 	if (compress_pos) {		// build compressed position report, yes, byte by byte.
-		pos[0] = 0x21;
+		pos[0] = 0x21;		// '!'
 		pos[1] = symbol_table[0];
 		float lat;
 		float lon;
@@ -363,15 +368,15 @@ void send_pos_report() {		// exactly what it sounds like
 		pos[9] = (int)lon % 91 + 33;
 		pos[10] = symbol_char[0];
 		pos[11] = gps_hdg / 4 + 33;
-		pos[12] = (int)pow(gps_speed, 1.08 - 1) + 33;
-		pos[13] = 0x5F;
-		pos[14] = 0x00;
-	} else {
+		pos[12] = (int)pow(gps_speed,(float)(1.08 - 1)) + 33;
+		pos[13] = 0x5F;			// set "T" byte
+		pos[14] = 0x00;			// (null terminated string)
+	} else {	// uncompressed packet
 		sprintf(pos, "!%.2f%s%s%.2f%s%s", pos_lat, pos_lat_dir.c_str(), symbol_table.c_str(), pos_long, pos_long_dir.c_str(), symbol_char.c_str());
 	}
 	string buff = pos;
 	buff.append(beacon_comment);
-	delete pos;
+	delete pos;		// memory leak fixed
 	send_kiss_frame(mycall.c_str(), myssid, PACKET_DEST, 0, path_calls, path_ssids, buff);
 }	// END OF 'send_pos_report'
 
@@ -381,6 +386,7 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 
 	while (true) {
 		read(gps_iface, data, 1);
+		printf(data);
 		if (data[0] == '\n') {			// NMEA data is terminated with a newline.
 			if (buff.length() > 6) {	// but let's not bother if this was an incomplete line
 				//if (gps_debug) printf("GPS_IN: %s\n", buff.c_str());
@@ -420,11 +426,32 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 		}
 	}
 	return 0;
-} // END 'gps_thread'
+} // END OF 'gps_thread'
+
+void* tnc_thread(void*) {	// monitor the vhf data stream
+	string buff = "";
+	char * data = new char[1];
+	fd_set fds;
+	FD_SET(kiss_vhf_iface, &fds);
+
+	while (true) {
+		select(kiss_vhf_iface + 1, &fds, NULL, NULL, NULL);		// wait for data
+		read(kiss_vhf_iface, data, 1);		// read the data
+		if (data[0] == 0xC0) {				// data is terminated with a FEND.
+			if (buff.length() > 22) {		// don't bother if the buffer is smaller than a valid kiss frame
+				// TODO: parse the incoming frame
+			}
+			buff = "";		// clear the buffer
+		} else {
+			buff.append(1, data[0]);	// this wasn't a FEND so just add it to the buffer.
+		}
+	}
+	return 0;
+} // END OF 'tnc_thread'
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
-	if (verbose) printf("Closing TNC interface\n");
-	close(kiss_iface);
+	if (verbose) printf("\nClosing TNC interface\n");
+	close(kiss_vhf_iface);
 	if (verbose) printf("Closing GPS interface\n");
 	close(gps_iface);
 	exit (EXIT_SUCCESS);
@@ -435,6 +462,9 @@ int main(int argc, char* argv[]) {
 	signal(SIGINT,&cleanup);	// catch ctrl-c
 
 	init(argc, argv);	// get everything ready to go
+
+	pthread_t tnc_t;
+	pthread_create(&tnc_t, NULL, &tnc_thread, NULL);
 
 	if (gps_iface > 0) {
 		pthread_t gps_t;
