@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <time.h>
 #include <cmath>
+#include <bitset>
 //#include <hamlib/rig.h>	TODO: rig control
 #include "INIReader.cpp"
 
@@ -22,17 +23,17 @@ using namespace std;
 
 // GLOBAL VARS GO HERE
 string mycall;						// callsign we're operating under, excluding ssid
-char myssid;						// ssid of this station (stored as a number, not ascii)
+unsigned char myssid;				// ssid of this station (stored as a number, not ascii)
 bool compress_pos;					// should we compress the aprs packet?
 string symbol_table;				// which symbol table to use
 string symbol_char;					// which symbol to use from the table
-int sb_low_speed;					// SmartBeaconing low threshold, in mph
-int sb_low_rate;					// SmartBeaconing low rate
-int sb_high_speed;					// SmartBeaconing high threshold, in mph
-int sb_high_rate;					// SmartBeaconing high rate
-int sb_turn_min;					// SmartBeaconing turn minimum
-int sb_turn_time;					// SmartBeaconing turn time (minimum)
-int sb_turn_slope;					// SmartBeaconing turn slope
+unsigned short int sb_low_speed;	// SmartBeaconing low threshold, in mph
+unsigned int sb_low_rate;			// SmartBeaconing low rate
+unsigned short int sb_high_speed;	// SmartBeaconing high threshold, in mph
+unsigned int sb_high_rate;			// SmartBeaconing high rate
+unsigned short int sb_turn_min;		// SmartBeaconing turn minimum (deg)
+unsigned short int sb_turn_time;	// SmartBeaconing turn time (minimum)
+short int sb_turn_slope;			// SmartBeaconing turn slope
 bool verbose = false;				// did the user ask for verbose mode?
 bool gps_debug = false;				// did the user ask for gps debug info?
 bool tnc_debug = false;				// did the user ask for tnc debug info?
@@ -47,11 +48,53 @@ float pos_long;						// current longitude
 string pos_long_dir;				// current longitude direction
 struct tm * gps_time = new tm;		// last time received from the gps (if enabled)
 float gps_speed;					// speed from gps, in knots
-int gps_hdg;						// heading from gps
+short int gps_hdg;					// heading from gps
 int static_beacon_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 string beacon_comment;				// comment to send along with aprs packets
 vector<string> path_calls;			// path callsigns
 vector<char> path_ssids;			// path ssids
+unsigned int last_heard;			// time since we heard a station on vhf
+string temp_file;					// file to get 1-wire temp info from, blank to disable
+
+struct ax25address {				// struct for working with calls
+	string callsign;
+	unsigned char ssid;
+	bool hbit;
+	bool last;
+
+	void decode() {					// transform ax25 address into plaintext
+		string incall = callsign;
+		callsign = "";
+		for (int i=0;i<6;i++) {
+			incall[i] >>= 1;		// shift this char to the right
+			if (incall[i] != 0x20) callsign.append(1,incall[i]);
+		}
+		bitset<8> ssidbits(ssid);
+		last = ssidbits.test(0);
+		hbit = ssidbits.test(7);
+		ssidbits.reset(7);
+		ssidbits.reset(6);
+		ssidbits.reset(5);
+		ssidbits >>= 1;
+		ssid = ssidbits.to_ulong();
+	} // END OF 'decode'
+
+	void encode() {					// transform plaintext data into ax25 address
+		char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces
+		memcpy(paddedcallsign, callsign.c_str(), strlen(callsign.c_str()));		// copy the shifted callsign into our padded container
+		for (int i=0;i<6;i++) {
+			paddedcallsign[i] <<= 1;		// shift all the chars in the input callsign
+		}
+		callsign = paddedcallsign;
+		bitset<8> ssidbits(ssid);
+		ssidbits <<= 1;			// shift ssid
+		ssidbits.set(0,last);
+		ssidbits.set(5,true);
+		ssidbits.set(6,true);
+		ssidbits.set(7,hbit);
+		ssid = ssidbits.to_ulong();
+	}	// END OF 'encode'
+};
 
 // BEGIN FUNCTIONS
 void find_and_replace(string& subject, const string& search, const string& replace) {	// find and replace in a string, thanks Czarek Tomczak
@@ -236,6 +279,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
 	symbol_table = readconfig.Get("beacon", "symbol_table", "/");
 	symbol_char = readconfig.Get("beacon", "symbol", "/");
+	temp_file = readconfig.Get("beacon", "temp_file", "");
 	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
@@ -287,16 +331,16 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (verbose) printf("Init finished!\n\n");
 }	// END OF 'init'
 
-string ax25_callsign(const char* callsign) {		// pad a callsign with spaces to 6 chars and shift chars to the left
+string encode_ax25_callsign(const char* callsign) {		// pad a callsign with spaces to 6 chars and shift chars to the left
 	char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces
 	memcpy(paddedcallsign, callsign, strlen(callsign));		// copy the shifted callsign into our padded container
 	for (int i=0;i<6;i++) {
 			paddedcallsign[i] <<= 1;		// shift all the chars in the input callsign
 		}
 	return paddedcallsign;
-}	// END OF 'ax25_callsign'
+}	// END OF 'encode_ax25_callsign'
 
-char ax25_ssid(char ssid, bool hbit, bool last) {	// format an ax25 ssid byte
+char encode_ax25_ssid(char ssid, bool hbit, bool last) {	// format an ax25 ssid byte
 	ssid <<= 1;			// shift ssid
 	if (hbit) {			// set h and c bits
 		ssid |= 0xE0;	// 11100000
@@ -305,28 +349,79 @@ char ax25_ssid(char ssid, bool hbit, bool last) {	// format an ax25 ssid byte
 	}
 	ssid |= last;		// set address end bit
 	return ssid;
-}
+} // END OF 'encode_ax25_ssid'
+
+void process_ax25_frame(string data) {		// update last heard var
+	ax25address destination;
+	ax25address source;
+	vector<ax25address> via;
+	string payload;
+	destination.callsign = data.substr(0,6);
+	destination.ssid = data[6];
+	destination.decode();
+	source.callsign = data.substr(7,6);
+	source.ssid = data[13];
+	source.decode();
+	int index = 14;
+	int viacalls = 0;
+	if (!source.last) {
+		ax25address thisone;
+		while (true) {
+			thisone.callsign = data.substr(index,6);
+			thisone.ssid = data[index+6];
+			thisone.decode();
+			via.push_back(thisone);
+			viacalls++;
+			index += 7;
+			if (thisone.last) break;
+		}
+	}
+	payload = data.substr(index+2, string::npos);		// all the way to the end of the frame, but skip control bytes
+	if (tnc_debug) {									// spit out this packet to the user in tnc2 format
+		string viastr;
+		char * viatemp = new char[8];
+		for (int i=0;i<viacalls;i++) {
+			sprintf(viatemp, ",%s", via[i].callsign.c_str());
+			viastr.append(viatemp);
+			if (via[i].ssid != 0) {						// add the ssid only if it's not 0
+				sprintf(viatemp, "-%i", via[i].ssid);
+				viastr.append(viatemp);
+			}
+			if (via[i].hbit) viastr.append("*");
+		}
+		delete viatemp;
+		printf("TNC_IN: %s", source.callsign.c_str());
+		if (source.ssid != 0) printf("-%i", source.ssid);
+		printf(">%s", destination.callsign.c_str());
+		if (destination.ssid != 0) printf("-%i", destination.ssid);
+		printf("%s:%s\n", viastr.c_str(), payload.c_str());
+	}
+	if ((source.callsign.compare(mycall) == 0) && source.ssid == myssid) {
+		if (tnc_debug) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", last_heard);
+		last_heard = 0;	// clear last_heard if we were successfully digi'd.
+	}
+} // END OF 'process_ax25_frame'
 
 void send_kiss_frame(const char* source, int source_ssid, const char* destination, int destination_ssid, vector<string> via, vector<char>via_ssids, string payload, vector<bool>via_hbits = vector<bool>()) {		// send a KISS packet to the TNC
 	// we'll build the ax25 frame before adding the kiss encapsulation
-	string buff = ax25_callsign(destination);					// add destination address
-	buff.append(1, ax25_ssid(destination_ssid, false, false));	// add destination ssid
-	buff.append(ax25_callsign(source));							// add source address
+	string buff = encode_ax25_callsign(destination);					// add destination address
+	buff.append(1, encode_ax25_ssid(destination_ssid, false, false));	// add destination ssid
+	buff.append(encode_ax25_callsign(source));							// add source address
 	if (via.size() == 0) {
-		buff.append(1, ax25_ssid(source_ssid, false, true));	// no path, add source ssid and end the address field
+		buff.append(1, encode_ax25_ssid(source_ssid, false, true));	// no path, add source ssid and end the address field
 	} else {
 		if (via_hbits.size() == 0) {							// via_hbits was not specified, fill it with zeros
 			for (int i=0;i<via.size();i++) {
 				via_hbits.push_back(false);
 			}
 		}
-		buff.append(1, ax25_ssid(source_ssid, false, false));	// path to follow, don't end the address field just yet
+		buff.append(1, encode_ax25_ssid(source_ssid, false, false));	// path to follow, don't end the address field just yet
 		for (int i=0;i<(via.size()-1);i++) {					// loop thru all via calls except the last
-			buff.append(ax25_callsign(via[i].c_str()));			// add this via callsign
-			buff.append(1, ax25_ssid(via_ssids[i], via_hbits[i], false)); // add this via ssid
+			buff.append(encode_ax25_callsign(via[i].c_str()));			// add this via callsign
+			buff.append(1, encode_ax25_ssid(via_ssids[i], via_hbits[i], false)); // add this via ssid
 		}
-		buff.append(ax25_callsign(via[via.size()-1].c_str()));	// finally made it to the last via call
-		buff.append(1,ax25_ssid(via_ssids[via_ssids.size()-1], via_hbits[via_hbits.size()-1], true));	// end the address field
+		buff.append(encode_ax25_callsign(via[via.size()-1].c_str()));	// finally made it to the last via call
+		buff.append(1,encode_ax25_ssid(via_ssids[via_ssids.size()-1], via_hbits[via_hbits.size()-1], true));	// end the address field
 	}
 	buff.append("\x03\xF0");									// add control and pid bytes (ui frame)
 	buff.append(payload);										// add the actual data
@@ -386,7 +481,6 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 
 	while (true) {
 		read(gps_iface, data, 1);
-		printf(data);
 		if (data[0] == '\n') {			// NMEA data is terminated with a newline.
 			if (buff.length() > 6) {	// but let's not bother if this was an incomplete line
 				//if (gps_debug) printf("GPS_IN: %s\n", buff.c_str());
@@ -413,7 +507,7 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 						pos_long_dir = params[5];
 						gps_speed = atof(params[6].c_str());
 						gps_hdg = atoi(params[7].c_str());
-						if (gps_debug) printf("GPS_DEBUG: Lat:%f%s Long:%f%s MPH:%f Hdg:%i Time:%s", pos_lat, pos_lat_dir.c_str(), pos_long, pos_long_dir.c_str(), gps_speed, gps_hdg, asctime(gps_time));
+						if (gps_debug) printf("GPS_DEBUG: Lat:%f%s Long:%f%s MPH:%.2f Hdg:%i Time:%s", pos_lat, pos_lat_dir.c_str(), pos_long, pos_long_dir.c_str(), gps_speed, gps_hdg, asctime(gps_time));
 					} else {
 						beacon_ok = false;
 						if (gps_debug) printf("GPS_DEBUG: data invalid.\n");
@@ -430,20 +524,43 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 
 void* tnc_thread(void*) {	// monitor the vhf data stream
 	string buff = "";
-	char * data = new char[1];
+	unsigned char * data = new unsigned char[1];
+	bool escape = false;
 	fd_set fds;
 	FD_SET(kiss_vhf_iface, &fds);
 
 	while (true) {
-		select(kiss_vhf_iface + 1, &fds, NULL, NULL, NULL);		// wait for data
+		select(kiss_vhf_iface + 1, &fds, NULL, NULL, NULL);		// wait for data	TODO: why do nonblocking reads use so much cpu time?
 		read(kiss_vhf_iface, data, 1);		// read the data
-		if (data[0] == 0xC0) {				// data is terminated with a FEND.
-			if (buff.length() > 22) {		// don't bother if the buffer is smaller than a valid kiss frame
-				// TODO: parse the incoming frame
+		switch (data[0]) {		// process kiss bytes
+		case 0xC0: 				// data is terminated with a FEND.
+			if (buff.length() > 20) {		// don't bother if the buffer is smaller than a valid kiss frame
+				process_ax25_frame(buff);
 			}
-			buff = "";		// clear the buffer
-		} else {
-			buff.append(1, data[0]);	// this wasn't a FEND so just add it to the buffer.
+			buff = "";
+			break;
+		case 0xDB:			// FESC
+			escape = !escape;
+			break;
+		case 0xDC:			// TFEND
+			if (escape) {
+				buff.append(1, 0xC0);
+			} else {
+				buff.append(1, 0xDC);
+			}
+			break;
+		case 0xDD:			// TFESC
+			if (escape) {
+				buff.append(1, 0xDB);
+			} else {
+				buff.append(1, 0xDD);
+			}
+			break;
+		case 0x00:			// control
+			break;
+		default:			// this wasn't a special char so just add it to the buffer.
+			buff.append(1, data[0]);
+			break;
 		}
 	}
 	return 0;
@@ -475,8 +592,8 @@ int main(int argc, char* argv[]) {
 
 	int beacon_rate = static_beacon_rate;
 	float turn_threshold = 0;
-	int last_hdg = gps_hdg;
-	int hdg_change = 0;
+	short int last_hdg = gps_hdg;
+	short int hdg_change = 0;
 	float speed;
 	int beacon_timer = beacon_rate;			// send startup beacon
 	while (true) {							// then send them periodically after that
@@ -489,7 +606,7 @@ int main(int argc, char* argv[]) {
 
 		if (static_beacon_rate == 0) {		// here we will implement SmartBeaconing(tm) from HamHUD.net
 			speed = gps_speed  * 1.15078;	// convert knots to mph
-			if (speed < sb_low_speed) {	// see http://www.hamhud.net/hh2/smartbeacon.html for more info
+			if (speed < sb_low_speed) {		// see http://www.hamhud.net/hh2/smartbeacon.html for more info
 				beacon_rate = sb_low_rate;
 			} else if (speed > sb_high_speed) {
 				beacon_rate = sb_high_rate;
@@ -499,12 +616,13 @@ int main(int argc, char* argv[]) {
 			turn_threshold = sb_turn_min + sb_turn_slope / speed;
 			hdg_change += gps_hdg - last_hdg;
 			last_hdg = gps_hdg;
-			if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time) beacon_timer = beacon_rate;
+			if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time && speed > 3) beacon_timer = beacon_rate;	// SmartBeaconing spec says corner-pegging is always enabled regardless of speed, but testing shows GPS "wandering" can set this off needlessly while parked
 		}
 		if (sb_debug) printf("SB_DEBUG: Rate:%i Timer:%i HdgChg:%i Thres:%f\n", beacon_rate, beacon_timer, hdg_change, turn_threshold);
 
 		sleep(1);
 		beacon_timer++;
+		last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.
 	}
 
 	return 0;
