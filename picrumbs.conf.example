@@ -1,0 +1,40 @@
+[station]
+; mycall: callsign-ssid, callsign max 6 chars and ssid must be 0-15
+mycall = N0CALL-9
+
+[tnc]
+port = /dev/ttyS0
+; baud is serial line rate, not on-air rate
+baud = 9600
+
+[gps]
+enable = true
+port = /dev/ttyS1
+baud = 4800
+
+[beacon]
+; compressed: compress beacon to save on-air bandwidth and increase reliability
+compressed = false
+; via: max of 8, PLEASE Google this subject before changing the default
+; if you don't fully understand the effects.
+via = WIDE1-1,WIDE2-1
+; symbol table: / or \, see http://wa8lmf.net/aprs/APRS_symbols.htm
+symbol_table = /
+; symbol: symbol char from table
+symbol = -
+; comment: keep this short to save on-air bandwidth and increase reliabiltiy
+comment = APRSToolkit
+; static_rate: seconds between beacons, 0 to use SmartBeaconing
+static_rate = 0
+; SmartBeaconing params, see http://info.aprs.net/index.php?title=SmartBeaconing
+sb_low_speed = 5
+sb_low_rate = 900
+sb_high_speed = 60
+sb_high_rate = 180
+sb_turn_min = 30
+sb_turn_time = 15
+sb_turn_slope = 255
+; temp_file: path to 1-wire temp sensor. leave blank to disable.
+temp_file = 
+; temp_f: temperature units. false for C, true for F
+temp_f = false
