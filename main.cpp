@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <cstring>
 #include <vector>
@@ -17,7 +19,7 @@
 
 // DEFINES GO HERE
 #define VERSION "0.1"				// program version for messages, etc
-#define PACKET_DEST "APMGT1"		// packet tocall
+#define PACKET_DEST "APMGP1"		// packet tocall
 
 using namespace std;
 
@@ -55,6 +57,7 @@ vector<string> path_calls;			// path callsigns
 vector<char> path_ssids;			// path ssids
 unsigned int last_heard;			// time since we heard a station on vhf
 string temp_file;					// file to get 1-wire temp info from, blank to disable
+bool temp_f;						// temp units: false for C, true for F
 
 struct ax25address {				// struct for working with calls
 	string callsign;
@@ -150,6 +153,23 @@ int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	}
 }	// END OF 'get_baud'
 
+int get_temp() {
+	ifstream tempfile;
+	string line;
+	int temp;
+	tempfile.open(temp_file.c_str());
+	getline(tempfile, line);
+	if (line.substr(36,3).compare("YES") == 0) {
+		getline(tempfile, line, '=');
+		getline(tempfile, line);
+		temp = atoi(line.c_str());
+		if (temp_f) temp = 1.8*temp+32000;
+		temp /= 1000;
+	}
+	tempfile.close();
+	return temp;
+}
+
 int open_port(string port, int baud_code, bool blocking) {			// open a serial port
 	struct termios options;
 	int iface = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);	// open the port
@@ -175,7 +195,7 @@ int open_port(string port, int baud_code, bool blocking) {			// open a serial po
 }	// END OF 'open_port'
 
 void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
-	string configfile = "/etc/aprstoolkit.conf";
+	string configfile = "/etc/picrumbs.conf";
 
 // COMMAND LINE ARGUMENT PARSING
 	
@@ -196,14 +216,14 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				else if (strcmp(optarg, "sb") == 0) sb_debug = true;
 				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
-				fprintf(stderr, "Usage: aprstoolkit [-v] [-c CONFIGFILE]\n\n");
+				fprintf(stderr, "Usage: picrumbs [-v] [-c CONFIGFILE]\n\n");
 				fprintf(stderr, "Options:\n -v\tbe verbose\n -c\tspecify config file\n -?\tshow this help\n");
 				exit (EXIT_FAILURE);
 				break;
 			}
 	}
 
-	if (verbose) printf("APRS Toolkit %s\n\n", VERSION);
+	if (verbose) printf("PiCrumbs %s\n\n", VERSION);
 
 // CONFIG FILE PARSING
 
@@ -280,6 +300,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	symbol_table = readconfig.Get("beacon", "symbol_table", "/");
 	symbol_char = readconfig.Get("beacon", "symbol", "/");
 	temp_file = readconfig.Get("beacon", "temp_file", "");
+	temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
 	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
@@ -431,7 +452,18 @@ void send_kiss_frame(const char* source, int source_ssid, const char* destinatio
 	buff.insert(0,"\xC0\x00",2);								// add kiss header
 	buff.append(1,0xC0);										// add kiss footer
 	write(kiss_vhf_iface,buff.c_str(),buff.length());				// spit this out the kiss interface
-	if (tnc_debug) printf("TNC_OUT: %s-%i to %s-%i via %i digis: %s\n", source, source_ssid, destination, destination_ssid, via.size(), payload.c_str());
+	if (tnc_debug) {
+		printf("TNC_OUT: %s", source);
+		if (source_ssid != 0) printf("-%i", source_ssid);
+		printf(">%s", destination);
+		if (destination_ssid != 0) printf("-%i", destination_ssid);
+		for (int i=0;i<via.size();i++) {
+			printf(",%s", via[i].c_str());
+			if (via_ssids[i] != 0) printf("-%i", via_ssids[i]);
+			if (via_hbits[i]) printf("*");
+		}
+		printf(":%s\n", payload.c_str());
+	}
 }	// END OF 'send_kiss_frame'
 
 void send_pos_report() {		// exactly what it sounds like
@@ -469,10 +501,19 @@ void send_pos_report() {		// exactly what it sounds like
 	} else {	// uncompressed packet
 		sprintf(pos, "!%.2f%s%s%.2f%s%s", pos_lat, pos_lat_dir.c_str(), symbol_table.c_str(), pos_long, pos_long_dir.c_str(), symbol_char.c_str());
 	}
-	string buff = pos;
-	buff.append(beacon_comment);
+	stringstream buff;
+	buff << pos;
+	if (temp_file.compare("") != 0) {
+		buff << get_temp();
+		if (temp_f) {
+			buff << "F ";
+		} else {
+			buff << "C ";
+		}
+	}
+	buff << beacon_comment;
 	delete pos;		// memory leak fixed
-	send_kiss_frame(mycall.c_str(), myssid, PACKET_DEST, 0, path_calls, path_ssids, buff);
+	send_kiss_frame(mycall.c_str(), myssid, PACKET_DEST, 0, path_calls, path_ssids, buff.str());
 }	// END OF 'send_pos_report'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
