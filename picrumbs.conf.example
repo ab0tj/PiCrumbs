@@ -23,7 +23,7 @@ symbol_table = /
 ; symbol: symbol char from table
 symbol = -
 ; comment: keep this short to save on-air bandwidth and increase reliabiltiy
-comment = APRSToolkit
+comment = PiCrumbs
 ; static_rate: seconds between beacons, 0 to use SmartBeaconing
 static_rate = 0
 ; SmartBeaconing params, see http://info.aprs.net/index.php?title=SmartBeaconing
