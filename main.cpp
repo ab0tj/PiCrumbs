@@ -279,12 +279,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	}
 	if (verbose) printf("Operating as %s-%i\n", mycall.c_str(), myssid);		// whew, we made it through all the tests
 
-	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
 	unsigned int vhf_tnc_baud = readconfig.GetInteger("vhf_tnc", "baud", 9600);
 	bool hf_tnc_enable = readconfig.GetBoolean("hf_tnc", "enable", false);
 	string hf_tnc_port = readconfig.Get("hf_tnc", "port", "/dev/ttyS2");
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
+	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
 	string gps_port  = readconfig.Get("gps", "port", "/dev/ttyS1");
 	unsigned int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
 	beacon_comment = readconfig.Get("beacon", "comment", "");
@@ -306,7 +306,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
 	gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
 
-	if (gpio_enable) {
+	if (gpio_enable) {	// set up GPIO stuff
 		wiringPiSetup();
 		pinMode(gpio_hf_en, INPUT);
 		pullUpDnControl(gpio_hf_en, PUD_UP);
@@ -317,9 +317,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	bool hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
 	string hamlib_baud = readconfig.Get("radio", "baud", "38400");
-	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 0);
+	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);
 
-	unsigned int pathidx = 1;
+	unsigned int pathidx = 1;	// now we will parse the APRS paths.
 	stringstream pathsect;
 	pathsect << "path" << "1";
 	map<string, rmode_t> modemap;
@@ -333,7 +333,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	modemap["PKTUSB"] = RIG_MODE_PKTUSB;
 	modemap["PKTLSB"] = RIG_MODE_PKTLSB;
 
-	while (true) {
+	while (true) {		// loop thru all paths in the config file
 		aprspath thispath;
 		thispath.freq = readconfig.GetInteger(pathsect.str(), "freq", 144390000);
 		thispath.mode = modemap[readconfig.Get(pathsect.str(), "mode", "FM")];
@@ -342,7 +342,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.hf = readconfig.GetBoolean(pathsect.str(), "hf", false);
 		string beacon_via_str = readconfig.Get(pathsect.str(), "via", "");	// now we get to parse the via paramater
 
-		if (beacon_via_str.length() > 0) {
+		if (beacon_via_str.length() > 0) {	// parse via param, skip if no via was defined
 			int current;
 			int next = -1;
 			string this_call;
@@ -386,7 +386,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 // OPEN TNC INTERFACE(s)
 
-	// no 'if' here, since this would be pointless without a TNC
+	// no 'if' here, since this would be pointless without at least a VHF TNC	TODO: HF-only compatibility
 
 	int baud_code = get_baud(vhf_tnc_baud);
 
@@ -498,7 +498,7 @@ bool tune_radio(int path) {		// use hamlib to turn the radio to the freq and mod
 		fprintf(stderr, "Hamlib error %i: %s", Ex.errorno, Ex.message);
 		return false;
 	}
-	return false;
+	return false;		// compiles fine without this, i just put it here to make eclipse shut up.
 }	// END OF 'tune_radio'
 
 bool check_gpio(int path) {		// check to see if gpio says we can use this path
@@ -533,7 +533,7 @@ char encode_ax25_ssid(char ssid, bool hbit, bool last) {	// format an ax25 ssid 
 	return ssid;
 } // END OF 'encode_ax25_ssid'
 
-void process_ax25_frame(string data) {		// update last heard var
+void process_ax25_frame(string data) {		// listen for our own packets and update last heard var
 	ax25address destination;
 	ax25address source;
 	vector<ax25address> via;
@@ -664,7 +664,7 @@ void send_pos_report(int path = 0) {		// exactly what it sounds like
 		pos[9] = (int)lon % 91 + 33;
 		pos[10] = symbol_char[0];
 		pos[11] = gps_hdg / 4 + 33;
-		pos[12] = (int)pow(gps_speed,(float)(1.08 - 1)) + 33;
+		pos[12] = (int)pow(gps_speed,(float)(1.08)) + 32;
 		pos[13] = 0x5F;			// set "T" byte
 		pos[14] = 0x00;			// (null terminated string)
 	} else {	// uncompressed packet
