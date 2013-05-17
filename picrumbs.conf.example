@@ -1,23 +1,44 @@
+; Station Info:
 [station]
 ; mycall: callsign-ssid, callsign max 6 chars and ssid must be 0-15
 mycall = N0CALL-9
 
-[tnc]
+; 1200-baud TNC:
+[vhf_tnc]
 port = /dev/ttyS0
 ; baud is serial line rate, not on-air rate
 baud = 9600
 
+; 300-baud TNC:
+[hf_tnc]
+enable = false
+port = /dev/ttyS2
+baud = 9600
+
+; GPS Serial Port (NMEA)
 [gps]
 enable = true
 port = /dev/ttyS1
 baud = 4800
 
+; Radio Serial Port
+[radio]
+enable = false
+port = /dev/ttyS3
+baud = 38400
+; model: see the HamLib website to find yours.
+model = 122
+
+; Raspberry Pi GPIO Settings
+[gpio]
+enable = false
+hf_en_pin = 5
+vhf_en_pin = 6
+
+; Beacon Params:
 [beacon]
 ; compressed: compress beacon to save on-air bandwidth and increase reliability
 compressed = false
-; via: max of 8, PLEASE Google this subject before changing the default
-; if you don't fully understand the effects.
-via = WIDE1-1,WIDE2-1
 ; symbol table: / or \, see http://wa8lmf.net/aprs/APRS_symbols.htm
 symbol_table = /
 ; symbol: symbol char from table
@@ -38,3 +59,25 @@ sb_turn_slope = 255
 temp_file = 
 ; temp_f: temperature units. false for C, true for F
 temp_f = false
+
+; Smart Frequency Hopping:
+; you can specify multiple [path*] sections here. each will be tried, in order.
+; if your station is not repeated by a digi, the next path will be tried.
+; only the last path should be used for HF, there are few or no digis on HF.
+; the last path (or single path) will not be checked to see if we were repeated.
+[path1]
+; freq: frequency to use for this APRS path, in Hz
+freq = 144390000
+; mode: mode to use for this path, eg. FM, USB, LSB, PKTFM
+mode = FM
+; sat: check with PREDICT to see if this satellite is overhead for this path
+; leave this blank to disable this check
+sat = 
+; min_ele: don't bother trying this sat if it isn't above this elevation
+min_ele = 0
+; hf: set to true to use the HF (300 baud) modem for this path
+hf = false
+; via: max of 8, PLEASE Google this subject before changing the default
+; if you don't fully understand the effects.
+; YOU SHOULD NOT USE A PATH ON HF
+via = WIDE1-1,WIDE2-1

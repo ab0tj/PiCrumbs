@@ -15,7 +15,8 @@
 #include <cmath>
 #include <bitset>
 #include <stdio.h>
-//#include <hamlib/rig.h>	TODO: rig control
+#include <wiringPi.h>
+#include <rigclass.h>
 #include "INIReader.cpp"
 
 // DEFINES GO HERE
@@ -67,7 +68,7 @@ struct ax25address {				// struct for working with calls
 
 struct aprspath {
 	unsigned int freq;				// frequency in hz
-	string mode;					// FM, USB, LSB, PKTFM, etc.
+	rmode_t mode;					// FM, USB, LSB, PKTFM, etc.
 	string sat;						// sat name to look up with PREDICT
 	unsigned char min_ele;			// minimum elevation of sat before trying to use it
 	bool hf;						// true for 300 baud, false for 1200 baud
@@ -92,6 +93,7 @@ bool verbose = false;				// did the user ask for verbose mode?
 bool gps_debug = false;				// did the user ask for gps debug info?
 bool tnc_debug = false;				// did the user ask for tnc debug info?
 bool sb_debug = false;				// did the user ask for smartbeaconing info?
+bool fh_debug = false;				// did the user ask for frequency hopping info?
 int vhf_tnc_iface = -1;				// vhf tnc serial port fd
 int hf_tnc_iface = -1;				// hf tnc serial port fd
 int gps_iface = -1;					// gps serial port fd
@@ -109,10 +111,14 @@ string beacon_comment;				// comment to send along with aprs packets
 vector<aprspath> aprs_paths;		// APRS frequencies to try, in order of preference
 //vector<string> path_calls;		// path callsigns
 //vector<char> path_ssids;			// path ssids
-unsigned int last_heard;			// time since we heard a station on vhf
+unsigned int last_heard = 16;		// time since we heard a station on vhf
 string temp_file;					// file to get 1-wire temp info from, blank to disable
 bool temp_f;						// temp units: false for C, true for F
 string predict_path;				// path to PREDICT program
+Rig* radio;							// radio control interface
+bool gpio_enable;					// can we use gpio pins
+unsigned char gpio_hf_en;			// gpio pin for hf enable
+unsigned char gpio_vhf_en;			// gpio pin for vfh enable
 
 // BEGIN FUNCTIONS
 void find_and_replace(string& subject, const string& search, const string& replace) {	// find and replace in a string, thanks Czarek Tomczak
@@ -168,7 +174,7 @@ int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	}
 }	// END OF 'get_baud'
 
-int get_temp() {
+int get_temp() {	// get temperature from one-wire sensor
 	ifstream tempfile;
 	string line;
 	int temp = 0;
@@ -184,7 +190,7 @@ int get_temp() {
 	} else return -65535;
 	tempfile.close();
 	return temp;
-}
+} // END OF 'get_temp'
 
 int open_port(string port, int baud_code, bool blocking) {			// open a serial port
 	struct termios options;
@@ -212,10 +218,10 @@ int open_port(string port, int baud_code, bool blocking) {			// open a serial po
 
 void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string configfile = "/etc/picrumbs.conf";
+	HAMLIB_API::rig_set_debug(RIG_DEBUG_NONE);
 
 // COMMAND LINE ARGUMENT PARSING
-	
-	if (argc > 1) {		// user entered command line arguments
+		if (argc > 1) {		// user entered command line arguments
 		int c;
 		opterr = 0;
 		while ((c = getopt (argc, argv, "c:vz:")) != -1)		// loop through all command line args
@@ -230,6 +236,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				if (strcmp(optarg, "gps") == 0) gps_debug = true;
 				else if (strcmp(optarg, "tnc") == 0) tnc_debug = true;
 				else if (strcmp(optarg, "sb") == 0) sb_debug = true;
+				else if (strcmp(optarg, "fh") == 0) fh_debug = true;
+				else if (strcmp(optarg, "hl") == 0) HAMLIB_API::rig_set_debug(RIG_DEBUG_TRACE);
 				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
 				fprintf(stderr, "Usage: picrumbs [-v] [-c CONFIGFILE]\n\n");
@@ -273,12 +281,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
-	int vhf_tnc_baud = readconfig.GetInteger("vhf_tnc", "baud", 9600);
+	unsigned int vhf_tnc_baud = readconfig.GetInteger("vhf_tnc", "baud", 9600);
 	bool hf_tnc_enable = readconfig.GetBoolean("hf_tnc", "enable", false);
 	string hf_tnc_port = readconfig.Get("hf_tnc", "port", "/dev/ttyS2");
-	int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
+	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
 	string gps_port  = readconfig.Get("gps", "port", "/dev/ttyS1");
-	int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
+	unsigned int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
 	beacon_comment = readconfig.Get("beacon", "comment", "");
 	compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
 	symbol_table = readconfig.Get("beacon", "symbol_table", "/");
@@ -294,14 +302,41 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
 	sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
 	predict_path = readconfig.Get("predict", "path", "");
+	gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
+	gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
+	gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
+
+	if (gpio_enable) {
+		wiringPiSetup();
+		pinMode(gpio_hf_en, INPUT);
+		pullUpDnControl(gpio_hf_en, PUD_UP);
+		pinMode(gpio_vhf_en, INPUT);
+		pullUpDnControl(gpio_vhf_en, PUD_UP);
+	}
+
+	bool hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
+	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
+	string hamlib_baud = readconfig.Get("radio", "baud", "38400");
+	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 0);
 
 	unsigned int pathidx = 1;
 	stringstream pathsect;
 	pathsect << "path" << "1";
+	map<string, rmode_t> modemap;
+	modemap["FM"] = RIG_MODE_FM;
+	modemap["AM"] = RIG_MODE_AM;
+	modemap["USB"] = RIG_MODE_USB;
+	modemap["LSB"] = RIG_MODE_LSB;
+	modemap["RTTY"] = RIG_MODE_RTTY;
+	modemap["RTTYR"] = RIG_MODE_RTTYR;
+	modemap["PKTFM"] = RIG_MODE_PKTFM;
+	modemap["PKTUSB"] = RIG_MODE_PKTUSB;
+	modemap["PKTLSB"] = RIG_MODE_PKTLSB;
+
 	while (true) {
 		aprspath thispath;
 		thispath.freq = readconfig.GetInteger(pathsect.str(), "freq", 144390000);
-		thispath.mode = readconfig.Get(pathsect.str(), "mode", "FM");
+		thispath.mode = modemap[readconfig.Get(pathsect.str(), "mode", "FM")];
 		thispath.sat = readconfig.Get(pathsect.str(), "sat", "");
 		thispath.min_ele = readconfig.GetInteger(pathsect.str(), "min_ele", 0);
 		thispath.hf = readconfig.GetBoolean(pathsect.str(), "hf", false);
@@ -406,10 +441,19 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 		if (verbose) printf("Successfully opened GPS port %s at %i baud\n", gps_port.c_str(), gps_baud);
 	} else beacon_ok = true;	// gps not enabled, use static beacons
+
+// OPEN RIG INTERFACE
+	if (hamlib_enable) {
+		radio = new Rig(hamlib_model);
+		radio->setConf("rig_pathname", hamlib_port.c_str());
+		radio->setConf("serial_speed", hamlib_baud.c_str());
+		radio->open();
+	}
+
 	if (verbose) printf("Init finished!\n\n");
 }	// END OF 'init'
 
-bool is_visible(string sat, int min_ele = 0) {	// use PREDICT to figure out if this sat is around to try
+bool is_visible(int path) {	// use PREDICT to figure out if this sat is around to try
 	ofstream qthfile;
 	float lat = pos_lat;
 	if (pos_lat_dir.compare("S") == 0) lat = -lat;
@@ -426,7 +470,7 @@ bool is_visible(string sat, int min_ele = 0) {	// use PREDICT to figure out if t
 
 	stringstream predict_cmd;
 	predict_cmd << predict_path;
-	predict_cmd << " -f " << '"' << sat << "\" " << mktime(gps_time);
+	predict_cmd << " -f " << '"' << aprs_paths[path].sat << "\" " << mktime(gps_time);
 	predict_cmd << " -q /tmp/picrumbs.qth";									// build the command line
 	FILE *predict = popen(predict_cmd.str().c_str(), "r");
 
@@ -442,8 +486,32 @@ bool is_visible(string sat, int min_ele = 0) {	// use PREDICT to figure out if t
 
 	int ele = atoi(buff_s.substr(32, 4).c_str());
 
-	return (ele > min_ele);
+	return (ele > aprs_paths[path].min_ele);
 }	// END OF 'is_visible'
+
+bool tune_radio(int path) {		// use hamlib to turn the radio to the freq and mode of this path
+	try {
+		radio->setFreq(Hz(aprs_paths[path].freq));
+		radio->setMode(aprs_paths[path].mode);
+		return true;
+	} catch (const RigException& Ex) {
+		fprintf(stderr, "Hamlib error %i: %s", Ex.errorno, Ex.message);
+		return false;
+	}
+	return false;
+}	// END OF 'tune_radio'
+
+bool check_gpio(int path) {		// check to see if gpio says we can use this path
+	bool ok;
+	if (aprs_paths[path].hf) {
+		ok = (digitalRead(gpio_hf_en) == 0);
+		if (!ok && fh_debug) printf("FH_DEBUG: HF disabled via GPIO.\n");
+	} else {
+		ok = (digitalRead(gpio_vhf_en) == 0);
+		if (!ok && fh_debug) printf("FH_DEBUG: VHF disabled via GPIO.\n");
+	}
+	return ok;
+} // END OF 'check_gpio'
 
 string encode_ax25_callsign(const char* callsign) {		// pad a callsign with spaces to 6 chars and shift chars to the left
 	char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces
@@ -550,7 +618,11 @@ void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* d
 		write(vhf_tnc_iface,buff.c_str(),buff.length());
 	}
 	if (tnc_debug) {
-		printf("TNC_OUT: %s", source);
+		if (hf) {
+			printf("TNC_OUT(hf): %s", source);
+		} else {
+			printf("TNC_OUT(vhf): %s", source);
+		}
 		if (source_ssid != 0) printf("-%i", source_ssid);
 		printf(">%s", destination);
 		if (destination_ssid != 0) printf("-%i", destination_ssid);
@@ -616,30 +688,56 @@ void send_pos_report(int path = 0) {		// exactly what it sounds like
 	send_kiss_frame(aprs_paths[path].hf, mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
 }	// END OF 'send_pos_report'
 
-void beacon() {
-	if (last_heard < 15) return;		// hardcoded rate limiting
+unsigned int beacon() {		// try to send an APRS beacon
+	if (last_heard < 15) return -1;		// hardcoded rate limiting
 	int paths = aprs_paths.size();
 	if (paths == 1) {		// no frequency hopping, just send a report
+		if (!check_gpio(0)) return -1;
 		send_pos_report();
+		return 0;
 	} else {
 		for (int i=0;i<paths-1;i++) {	// loop thru all paths but the last
-			// tune_radio(i);
-			sleep(1);							// give radio time to do it's thing
-			send_pos_report(i);
-			sleep(5);
-			if (last_heard > 15) {				// probably didn't get digi'd
-				send_pos_report(i);				// try again
+			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
+			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
+				if (!is_visible(i)) {
+					if (fh_debug) printf("FH_DEBUG: %s not visible. Skipping.\n", aprs_paths[i].sat.c_str());
+					continue;			// skip this path is this sat isn't visible
+				} else {
+					if (fh_debug) printf("FH_DEBUG: %s is visible. Trying it.\n", aprs_paths[i].sat.c_str());
+				}
+			}
+			if (check_gpio(i) && tune_radio(i)) {	// skip if gpio says no or we can't tune this freq
+				sleep(1);							// give radio time to do it's thing
+				send_pos_report(i);
 				sleep(5);
-				if (last_heard < 15) return;	// must have worked this time
+				if (last_heard > 15) {				// probably didn't get digi'd
+					if (fh_debug) printf("FH_DEBUG: Retrying.\n");
+					send_pos_report(i);				// try again
+					sleep(5);
+					if (last_heard < 15) return i;	// must have worked this time
+				} else {
+					return i;							// we did get digi'd
+				}
+			}
+		}
+		if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", paths);
+		if (aprs_paths[paths - 1].sat.compare("") != 0) {	// if the last path has a sat we ought to check that it might hear us
+			if (!is_visible(paths - 1)) {
+				if (fh_debug) printf("FH_DEBUG: %s not visible. Skipping.\n", aprs_paths[paths - 1].sat.c_str());
+				return -1;			// skip this path is this sat isn't visible
 			} else {
-				return;							// we did get digi'd
+				if (fh_debug) printf("FH_DEBUG: %s is visible. Trying it.\n", aprs_paths[paths - 1].sat.c_str());
 			}
 		}
 
-		// tune_radio(paths - 1);
-		send_pos_report(paths - 1);	// last ditch effort since we haven't returned yet
+		paths--;
+		if (check_gpio(paths) && tune_radio(paths)) {
+			send_pos_report(paths);	// last ditch effort since we haven't returned yet
+			return paths;
+		}
+		return -1;
 	}
-}
+} // END OF 'beacon'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
 	string buff = "";
@@ -693,7 +791,7 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 					}
 					if (params[5].compare("0") != 0) {	// this will be 0 if invalid
 						pos_alt = atoi(params[8].c_str());
-						if (gps_debug) printf("GPS_DEBUG: Alt: %i\n", pos_alt);
+						if (gps_debug) printf("GPS_DEBUG: Alt:%i\n", pos_alt);
 					}
 				}
 			}
@@ -750,10 +848,11 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 } // END OF 'tnc_thread'
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
-	if (verbose) printf("\nClosing TNC interface\n");
+	if (verbose) printf("\nCleaning up.\n");
 	close(vhf_tnc_iface);
-	if (verbose) printf("Closing GPS interface\n");
+	close(hf_tnc_iface);
 	close(gps_iface);
+	radio->close();
 	exit (EXIT_SUCCESS);
 } // END OF 'cleanup'
 
@@ -778,11 +877,11 @@ int main(int argc, char* argv[]) {
 	short int last_hdg = gps_hdg;
 	short int hdg_change = 0;
 	float speed;
-	int beacon_timer = beacon_rate;			// send startup beacon
-	while (true) {							// then send them periodically after that
-		if (beacon_timer >= beacon_rate) {	// if it's time...
-			while (!beacon_ok) sleep (1);	// wait if gps data not valid
-			beacon();						// send a beacon
+	int beacon_timer = beacon_rate;				// send startup beacon
+	while (true) {								// then send them periodically after that
+		if (beacon_timer >= beacon_rate) {		// if it's time...
+			while (!beacon_ok) sleep (1);		// wait if gps data not valid
+			if (beacon() > 0) tune_radio(0);	// send a beacon, retune if necessary
 			beacon_timer = 0;
 			hdg_change = 0;
 		}
