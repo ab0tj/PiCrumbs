@@ -664,7 +664,7 @@ void send_pos_report(int path = 0) {		// exactly what it sounds like
 		pos[9] = (int)lon % 91 + 33;
 		pos[10] = symbol_char[0];
 		pos[11] = gps_hdg / 4 + 33;
-		pos[12] = (int)pow(gps_speed,(float)(1.08)) + 32;
+		pos[12] = log(gps_speed+1)/log(1.08) + 33;
 		pos[13] = 0x5F;			// set "T" byte
 		pos[14] = 0x00;			// (null terminated string)
 	} else {	// uncompressed packet
