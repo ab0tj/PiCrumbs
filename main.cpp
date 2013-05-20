@@ -67,7 +67,7 @@ struct ax25address {				// struct for working with calls
 };
 
 struct aprspath {
-	unsigned int freq;				// frequency in hz
+	freq_t freq;					// frequency in hz
 	rmode_t mode;					// FM, USB, LSB, PKTFM, etc.
 	string sat;						// sat name to look up with PREDICT
 	unsigned char min_ele;			// minimum elevation of sat before trying to use it
@@ -378,7 +378,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 		aprs_paths.push_back(thispath);
 		pathidx++;
-		pathsect.clear();
+		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
 		if (readconfig.GetInteger(pathsect.str(), "freq", 0) == 0) break;
 	}
@@ -454,6 +454,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 }	// END OF 'init'
 
 bool is_visible(int path) {	// use PREDICT to figure out if this sat is around to try
+	if (predict_path.compare("") == 0) return false;	// short circuit if predict not defined
 	ofstream qthfile;
 	float lat = pos_lat;
 	if (pos_lat_dir.compare("S") == 0) lat = -lat;
@@ -472,36 +473,42 @@ bool is_visible(int path) {	// use PREDICT to figure out if this sat is around t
 	predict_cmd << predict_path;
 	predict_cmd << " -f " << '"' << aprs_paths[path].sat << "\" " << mktime(gps_time);
 	predict_cmd << " -q /tmp/picrumbs.qth";									// build the command line
-	FILE *predict = popen(predict_cmd.str().c_str(), "r");
+	try {
+		FILE *predict = popen(predict_cmd.str().c_str(), "r");
+		if (!predict) {
+			fprintf(stderr, "Could not execute %s\n", predict_cmd.str().c_str());
+			return false;
+		}
 
-	if (!predict) {
-		fprintf(stderr, "Could not execute %s\n", predict_cmd.str().c_str());
+		char buff[256];
+		fgets(buff, sizeof(buff), predict);
+		pclose(predict);
+		string buff_s = buff;
+
+		return (atoi(buff_s.substr(32, 4).c_str()) > aprs_paths[path].min_ele);
+	} catch (exception& e) {
+		fprintf(stderr, "Error while executing PREDICT (%s): %s\n", predict_cmd.str().c_str(), e.what());
 		return false;
 	}
-
-	char buff[256];
-	fgets(buff, sizeof(buff), predict);
-	pclose(predict);
-	string buff_s = buff;
-
-	int ele = atoi(buff_s.substr(32, 4).c_str());
-
-	return (ele > aprs_paths[path].min_ele);
+	return false;
 }	// END OF 'is_visible'
 
 bool tune_radio(int path) {		// use hamlib to turn the radio to the freq and mode of this path
 	try {
+		if (radio->getFreq() == aprs_paths[path].freq) return true; // skip if already set
 		radio->setFreq(Hz(aprs_paths[path].freq));
 		radio->setMode(aprs_paths[path].mode);
+		sleep(2);
 		return true;
 	} catch (const RigException& Ex) {
-		fprintf(stderr, "Hamlib error %i: %s", Ex.errorno, Ex.message);
+		fprintf(stderr, "Hamlib error %i: %s\n", Ex.errorno, Ex.message);
 		return false;
 	}
 	return false;		// compiles fine without this, i just put it here to make eclipse shut up.
 }	// END OF 'tune_radio'
 
 bool check_gpio(int path) {		// check to see if gpio says we can use this path
+	if (!gpio_enable) return true;	// short circuit if gpio is disabled
 	bool ok;
 	if (aprs_paths[path].hf) {
 		ok = (digitalRead(gpio_hf_en) == 0);
@@ -688,7 +695,7 @@ void send_pos_report(int path = 0) {		// exactly what it sounds like
 	send_kiss_frame(aprs_paths[path].hf, mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
 }	// END OF 'send_pos_report'
 
-unsigned int beacon() {		// try to send an APRS beacon
+int beacon() {		// try to send an APRS beacon
 	if (last_heard < 15) return -1;		// hardcoded rate limiting
 	int paths = aprs_paths.size();
 	if (paths == 1) {		// no frequency hopping, just send a report
@@ -696,8 +703,9 @@ unsigned int beacon() {		// try to send an APRS beacon
 		send_pos_report();
 		return 0;
 	} else {
-		for (int i=0;i<paths-1;i++) {	// loop thru all paths but the last
+		for (int i=0;i<paths;i++) {		// loop thru all paths
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
+			if (!check_gpio(i)) continue;	// skip if gpio says no
 			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
 				if (!is_visible(i)) {
 					if (fh_debug) printf("FH_DEBUG: %s not visible. Skipping.\n", aprs_paths[i].sat.c_str());
@@ -706,34 +714,18 @@ unsigned int beacon() {		// try to send an APRS beacon
 					if (fh_debug) printf("FH_DEBUG: %s is visible. Trying it.\n", aprs_paths[i].sat.c_str());
 				}
 			}
-			if (check_gpio(i) && tune_radio(i)) {	// skip if gpio says no or we can't tune this freq
-				sleep(1);							// give radio time to do it's thing
-				send_pos_report(i);
+			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
+			send_pos_report(i);					// passed all the tests. send a beacon.
+			if (aprs_paths[i].hf) return i;		// don't bother listening for a digi on hf.
+			sleep(5);
+			if (last_heard > 15) {		// probably didn't get digi'd.
+				if (fh_debug) printf("FH_DEBUG: Retrying.\n");
+				send_pos_report(i);				// try again
 				sleep(5);
-				if (last_heard > 15) {				// probably didn't get digi'd
-					if (fh_debug) printf("FH_DEBUG: Retrying.\n");
-					send_pos_report(i);				// try again
-					sleep(5);
-					if (last_heard < 15) return i;	// must have worked this time
-				} else {
-					return i;							// we did get digi'd
-				}
-			}
-		}
-		if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", paths);
-		if (aprs_paths[paths - 1].sat.compare("") != 0) {	// if the last path has a sat we ought to check that it might hear us
-			if (!is_visible(paths - 1)) {
-				if (fh_debug) printf("FH_DEBUG: %s not visible. Skipping.\n", aprs_paths[paths - 1].sat.c_str());
-				return -1;			// skip this path is this sat isn't visible
+				if (last_heard < 15) return i;	// must have worked this time
 			} else {
-				if (fh_debug) printf("FH_DEBUG: %s is visible. Trying it.\n", aprs_paths[paths - 1].sat.c_str());
+				return i;							// we did get digi'd
 			}
-		}
-
-		paths--;
-		if (check_gpio(paths) && tune_radio(paths)) {
-			send_pos_report(paths);	// last ditch effort since we haven't returned yet
-			return paths;
 		}
 		return -1;
 	}
@@ -881,7 +873,10 @@ int main(int argc, char* argv[]) {
 	while (true) {								// then send them periodically after that
 		if (beacon_timer >= beacon_rate) {		// if it's time...
 			while (!beacon_ok) sleep (1);		// wait if gps data not valid
-			if (beacon() > 0) tune_radio(0);	// send a beacon, retune if necessary
+			if (beacon() > 0) {
+				sleep(5);
+				tune_radio(0);	// send a beacon, retune if necessary
+			}
 			beacon_timer = 0;
 			hdg_change = 0;
 		}
