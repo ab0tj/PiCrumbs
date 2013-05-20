@@ -60,6 +60,10 @@ temp_file =
 ; temp_f: temperature units. false for C, true for F
 temp_f = false
 
+[predict]
+; PREDICT path, leave blank to disable
+path = 
+
 ; Smart Frequency Hopping:
 ; you can specify multiple [path*] sections here. each will be tried, in order.
 ; if your station is not repeated by a digi, the next path will be tried.
