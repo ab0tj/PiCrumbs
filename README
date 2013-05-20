@@ -1,0 +1,10 @@
+PiCrumbs, Alpha version 0.1
+
+Type ./build.sh to build PiCrumbs. libhamlib-dev, libhamlib++-dev and wiringPi
+are required.
+
+See picrumbs.conf.example for how to configure PiCrumbs. Your modified config
+file should be saved to /etc/picrumbs.conf
+
+PiCrumbs needs to have access to all the files you specify in the config file.
+Change permissions as necessary or run it as root.
