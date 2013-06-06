@@ -21,7 +21,7 @@
 
 // DEFINES GO HERE
 #define VERSION "0.1"				// program version for messages, etc
-#define PACKET_DEST "APMGP1"		// packet tocall
+#define PACKET_DEST "APRS"			// packet tocall
 
 using namespace std;
 
@@ -72,8 +72,11 @@ struct aprspath {
 	string sat;						// sat name to look up with PREDICT
 	unsigned char min_ele;			// minimum elevation of sat before trying to use it
 	bool hf;						// true for 300 baud, false for 1200 baud
+	bool retry;						// try again before moving on?
 	vector<string> pathcalls;		// path callsigns
 	vector<char> pathssids;			// path ssids
+	unsigned int holdoff;			// wait at least this many seconds before reusing this path
+	time_t lastused = 0;			// last time we sent a packet on this path
 };
 
 // GLOBAL VARS GO HERE
@@ -308,7 +311,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 	if (gpio_enable) {	// set up GPIO stuff
 		wiringPiSetup();
-		pinMode(gpio_hf_en, INPUT);
+		pinMode(gpio_hf_en, INPUT);				// set pin to input
 		pullUpDnControl(gpio_hf_en, PUD_UP);
 		pinMode(gpio_vhf_en, INPUT);
 		pullUpDnControl(gpio_vhf_en, PUD_UP);
@@ -316,7 +319,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 	bool hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
-	string hamlib_baud = readconfig.Get("radio", "baud", "38400");
+	string hamlib_baud = readconfig.Get("radio", "baud", "9600");
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);
 
 	unsigned int pathidx = 1;	// now we will parse the APRS paths.
@@ -335,12 +338,15 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 	while (true) {		// loop thru all paths in the config file
 		aprspath thispath;
-		thispath.freq = readconfig.GetInteger(pathsect.str(), "freq", 144390000);
-		thispath.mode = modemap[readconfig.Get(pathsect.str(), "mode", "FM")];
-		thispath.sat = readconfig.Get(pathsect.str(), "sat", "");
-		thispath.min_ele = readconfig.GetInteger(pathsect.str(), "min_ele", 0);
-		thispath.hf = readconfig.GetBoolean(pathsect.str(), "hf", false);
-		string beacon_via_str = readconfig.Get(pathsect.str(), "via", "");	// now we get to parse the via paramater
+		string path_s = pathsect.str();
+		thispath.freq = readconfig.GetInteger(path_s, "freq", 144390000);
+		thispath.mode = modemap[readconfig.Get(path_s, "mode", "FM")];
+		thispath.sat = readconfig.Get(path_s, "sat", "");
+		thispath.min_ele = readconfig.GetInteger(path_s, "min_ele", 0);
+		thispath.hf = readconfig.GetBoolean(path_s, "hf", false);
+		thispath.retry = readconfig.GetBoolean(path_s, "retry", true);
+		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
+		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater
 
 		if (beacon_via_str.length() > 0) {	// parse via param, skip if no via was defined
 			int current;
@@ -442,12 +448,18 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		if (verbose) printf("Successfully opened GPS port %s at %i baud\n", gps_port.c_str(), gps_baud);
 	} else beacon_ok = true;	// gps not enabled, use static beacons
 
-// OPEN RIG INTERFACE
+	// OPEN RIG INTERFACE
 	if (hamlib_enable) {
-		radio = new Rig(hamlib_model);
-		radio->setConf("rig_pathname", hamlib_port.c_str());
-		radio->setConf("serial_speed", hamlib_baud.c_str());
-		radio->open();
+		try {
+			radio = new Rig(hamlib_model);
+			radio->setConf("rig_pathname", hamlib_port.c_str());
+			radio->setConf("serial_speed", hamlib_baud.c_str());
+			radio->open();
+			if (verbose) printf("Sucessfully opened radio port %s at %s baud\n", hamlib_port.c_str(), hamlib_baud.c_str());
+		} catch(RigException& e) {
+			fprintf(stderr, "Hamlib exception when opening rig: %i (%s)\n", e.errorno, e.message);
+			exit (EXIT_FAILURE);
+		}
 	}
 
 	if (verbose) printf("Init finished!\n\n");
@@ -498,10 +510,10 @@ bool tune_radio(int path) {		// use hamlib to turn the radio to the freq and mod
 		if (radio->getFreq() == aprs_paths[path].freq) return true; // skip if already set
 		radio->setFreq(Hz(aprs_paths[path].freq));
 		radio->setMode(aprs_paths[path].mode);
-		sleep(2);
+		sleep(2);	// let the radio do it's thing. not all of then tune instantly
 		return true;
-	} catch (const RigException& Ex) {
-		fprintf(stderr, "Hamlib error %i: %s\n", Ex.errorno, Ex.message);
+	} catch (const RigException& e) {
+		fprintf(stderr, "Hamlib error %i: %s\n", e.errorno, e.message);
 		return false;
 	}
 	return false;		// compiles fine without this, i just put it here to make eclipse shut up.
@@ -553,7 +565,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 	source.decode();
 	int index = 14;
 	int viacalls = 0;
-	if (!source.last) {
+	if (!source.last) {		// skip if no digis in address field
 		ax25address thisone;
 		while (true) {
 			thisone.callsign = data.substr(index,6);
@@ -645,7 +657,7 @@ void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* d
 void send_pos_report(int path = 0) {		// exactly what it sounds like
 	char* pos = new char[21];
 	if (compress_pos) {		// build compressed position report, yes, byte by byte.
-		pos[0] = 0x21;		// '!'
+		pos[0] = '!';		// realtime position, no messaging
 		pos[1] = symbol_table[0];
 		float lat;
 		float lon;
@@ -705,23 +717,26 @@ int beacon() {		// try to send an APRS beacon
 	} else {
 		for (int i=0;i<paths;i++) {		// loop thru all paths
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
+			if (time(NULL) - aprs_paths[i].lastused < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
 			if (!check_gpio(i)) continue;	// skip if gpio says no
 			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
 				if (!is_visible(i)) {
-					if (fh_debug) printf("FH_DEBUG: %s not visible. Skipping.\n", aprs_paths[i].sat.c_str());
+					if (fh_debug) printf("FH_DEBUG: %s not visible.\n", aprs_paths[i].sat.c_str());
 					continue;			// skip this path is this sat isn't visible
 				} else {
-					if (fh_debug) printf("FH_DEBUG: %s is visible. Trying it.\n", aprs_paths[i].sat.c_str());
+					if (fh_debug) printf("FH_DEBUG: %s is visible.\n", aprs_paths[i].sat.c_str());
 				}
 			}
 			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
 			send_pos_report(i);					// passed all the tests. send a beacon.
+			time(&aprs_paths[i].lastused);		// update lastused time
 			if (aprs_paths[i].hf) return i;		// don't bother listening for a digi on hf.
-			sleep(5);
+			sleep(6);
 			if (last_heard > 15) {		// probably didn't get digi'd.
+				if (!aprs_paths[i].retry) continue;		// move on to the next one if we aren't allowed to retry here
 				if (fh_debug) printf("FH_DEBUG: Retrying.\n");
 				send_pos_report(i);				// try again
-				sleep(5);
+				sleep(6);
 				if (last_heard < 15) return i;	// must have worked this time
 			} else {
 				return i;							// we did get digi'd
