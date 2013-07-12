@@ -18,6 +18,7 @@
 #include <wiringPi.h>
 #include <rigclass.h>
 #include "INIReader.cpp"
+#include <curl/curl.h>
 
 // DEFINES GO HERE
 #define VERSION "0.1"				// program version for messages, etc
@@ -72,11 +73,12 @@ struct aprspath {
 	string sat;						// sat name to look up with PREDICT
 	unsigned char min_ele;			// minimum elevation of sat before trying to use it
 	bool hf;						// true for 300 baud, false for 1200 baud
+	bool aprsis;					// APRS-IS (internet) path
 	bool retry;						// try again before moving on?
 	vector<string> pathcalls;		// path callsigns
 	vector<char> pathssids;			// path ssids
 	unsigned int holdoff;			// wait at least this many seconds before reusing this path
-	time_t lastused = 0;			// last time we sent a packet on this path
+	time_t lastused;				// last time we sent a packet on this path
 };
 
 // GLOBAL VARS GO HERE
@@ -97,6 +99,7 @@ bool gps_debug = false;				// did the user ask for gps debug info?
 bool tnc_debug = false;				// did the user ask for tnc debug info?
 bool sb_debug = false;				// did the user ask for smartbeaconing info?
 bool fh_debug = false;				// did the user ask for frequency hopping info?
+bool curl_debug = false;			// let libcurl show verbose info?
 int vhf_tnc_iface = -1;				// vhf tnc serial port fd
 int hf_tnc_iface = -1;				// hf tnc serial port fd
 int gps_iface = -1;					// gps serial port fd
@@ -121,7 +124,11 @@ string predict_path;				// path to PREDICT program
 Rig* radio;							// radio control interface
 bool gpio_enable;					// can we use gpio pins
 unsigned char gpio_hf_en;			// gpio pin for hf enable
-unsigned char gpio_vhf_en;			// gpio pin for vfh enable
+unsigned char gpio_vhf_en;			// gpio pin for vhf enable
+string aprsis_server;				// APRS-IS server name/IP
+unsigned short int aprsis_port;		// APRS-IS port number
+string aprsis_user;					// APRS-IS username/callsign
+string aprsis_pass;					// APRS-IS password
 
 // BEGIN FUNCTIONS
 void find_and_replace(string& subject, const string& search, const string& replace) {	// find and replace in a string, thanks Czarek Tomczak
@@ -130,6 +137,10 @@ void find_and_replace(string& subject, const string& search, const string& repla
 		subject.replace(pos, search.length(), replace);
 		pos += replace.length();
 	}
+}
+
+size_t curlnull( char *ptr, size_t size, size_t nmemb, void *userdata) {	// empty function to make libcurl happy
+	return nmemb;
 }
 
 int get_baud(int baudint) {		// return a baudrate code from the baudrate int
@@ -241,6 +252,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				else if (strcmp(optarg, "sb") == 0) sb_debug = true;
 				else if (strcmp(optarg, "fh") == 0) fh_debug = true;
 				else if (strcmp(optarg, "hl") == 0) HAMLIB_API::rig_set_debug(RIG_DEBUG_TRACE);
+				else if (strcmp(optarg, "is") == 0) curl_debug = true;
 				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
 				fprintf(stderr, "Usage: picrumbs [-v] [-c CONFIGFILE]\n\n");
@@ -284,12 +296,15 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
 	unsigned int vhf_tnc_baud = readconfig.GetInteger("vhf_tnc", "baud", 9600);
+
 	bool hf_tnc_enable = readconfig.GetBoolean("hf_tnc", "enable", false);
 	string hf_tnc_port = readconfig.Get("hf_tnc", "port", "/dev/ttyS2");
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
+
 	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
 	string gps_port  = readconfig.Get("gps", "port", "/dev/ttyS1");
 	unsigned int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
+
 	beacon_comment = readconfig.Get("beacon", "comment", "");
 	compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
 	symbol_table = readconfig.Get("beacon", "symbol_table", "/");
@@ -304,7 +319,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
 	sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
 	sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
+
 	predict_path = readconfig.Get("predict", "path", "");
+
 	gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
 	gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
 	gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
@@ -321,6 +338,11 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
 	string hamlib_baud = readconfig.Get("radio", "baud", "9600");
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);
+
+	aprsis_server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
+	aprsis_port = readconfig.GetInteger("aprsis", "port", 8080);
+	aprsis_user = readconfig.Get("aprsis", "user", mycall);
+	aprsis_pass = readconfig.Get("aprsis", "pass", "-1");
 
 	unsigned int pathidx = 1;	// now we will parse the APRS paths.
 	stringstream pathsect;
@@ -344,6 +366,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.sat = readconfig.Get(path_s, "sat", "");
 		thispath.min_ele = readconfig.GetInteger(path_s, "min_ele", 0);
 		thispath.hf = readconfig.GetBoolean(path_s, "hf", false);
+		thispath.aprsis = readconfig.GetBoolean(path_s, "aprsis", false);
+		if (thispath.aprsis) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
 		thispath.retry = readconfig.GetBoolean(path_s, "retry", true);
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
 		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater
@@ -510,7 +534,7 @@ bool tune_radio(int path) {		// use hamlib to turn the radio to the freq and mod
 		if (radio->getFreq() == aprs_paths[path].freq) return true; // skip if already set
 		radio->setFreq(Hz(aprs_paths[path].freq));
 		radio->setMode(aprs_paths[path].mode);
-		sleep(2);	// let the radio do it's thing. not all of then tune instantly
+		sleep(2);	// let the radio do it's thing. not all of them tune instantly
 		return true;
 	} catch (const RigException& e) {
 		fprintf(stderr, "Hamlib error %i: %s\n", e.errorno, e.message);
@@ -654,7 +678,78 @@ void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* d
 	}
 }	// END OF 'send_kiss_frame'
 
-void send_pos_report(int path = 0) {		// exactly what it sounds like
+bool send_aprsis_http(const char* source, int source_ssid, const char* destination, int destination_ssid, vector<string> via, vector<char>via_ssids, string payload, vector<bool>via_hbits = vector<bool>()) {	// send an APRS packet via APRS-IS
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *headerlist = NULL;
+	stringstream aprsis_url;
+	stringstream buff;
+	string aprsis_postdata;
+
+	// first, build the TNC2 packet
+	buff << "user " << aprsis_user << " pass " << aprsis_pass << " vers PiCrumbs " << VERSION;
+	aprsis_postdata = buff.str();
+	aprsis_postdata.append("\n");
+	buff.str(source);	// clear buff and add source
+	if (source_ssid != 0) buff << '-' << source_ssid;
+	buff << '>' << destination;
+	if (destination_ssid != 0) buff << '-' << destination_ssid;
+	buff << ",TCPIP*";
+
+	if (via.size() != 0) {
+		if (via_hbits.size() == 0) {							// via_hbits was not specified, fill it with zeros
+			for (int i=0;i<via.size();i++) {
+				via_hbits.push_back(false);
+			}
+		}
+
+		for (int i=0;i<via.size();i++) {
+			buff << ',' << via[i];
+			if (via_ssids[i] != 0) buff << '-' << via_ssids[i];
+			if (via_hbits[i]) buff << '*';
+		}
+	}
+
+	buff << ':' << payload;
+	aprsis_postdata.append(buff.str());
+	aprsis_postdata.append("\n");
+
+	// then use libcurl to squirt it out to aprs-is
+	curl = curl_easy_init();
+	if (curl_debug) curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, *curlnull);
+	headerlist = curl_slist_append(headerlist, "Accept-Type: text/plain");
+	headerlist = curl_slist_append(headerlist, "Content-Type: application/octet-stream");
+	aprsis_url << "http://" << aprsis_server << ':' << aprsis_port;
+	curl_easy_setopt(curl, CURLOPT_URL, aprsis_url.str().c_str());
+	curl_easy_setopt(curl, CURLOPT_POST, 1);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 3);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buff.str().c_str());
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, buff.str().length());
+
+	res = curl_easy_perform(curl);
+
+	if (tnc_debug) {
+		string line;
+		getline(buff, line);
+		getline(buff, line);
+		printf("TNC_OUT(is): %s\n", line.c_str());
+	}
+
+	// a little cleanup...
+	curl_easy_cleanup(curl);
+	curl_slist_free_all(headerlist);
+
+	if (curl_debug) printf("CURL_DEBUG: HTTP request produced %i.\n", res);
+
+	return (res == CURLE_OK);
+}	// END OF 'send_aprsis_http'
+
+bool send_pos_report(int path = 0) {		// exactly what it sounds like
+	time(&aprs_paths[path].lastused);		// update lastused time on path
+
 	char* pos = new char[21];
 	if (compress_pos) {		// build compressed position report, yes, byte by byte.
 		pos[0] = '!';		// realtime position, no messaging
@@ -704,11 +799,16 @@ void send_pos_report(int path = 0) {		// exactly what it sounds like
 	}
 	buff << beacon_comment;
 	delete pos;		// memory leak fixed
-	send_kiss_frame(aprs_paths[path].hf, mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
+	if (aprs_paths[path].aprsis) {
+		return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
+	} else {
+		send_kiss_frame(aprs_paths[path].hf, mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
+		return true;
+	}
 }	// END OF 'send_pos_report'
 
 int beacon() {		// try to send an APRS beacon
-	if (last_heard < 15) return -1;		// hardcoded rate limiting
+	if (last_heard < 10) return -1;		// hardcoded rate limiting
 	int paths = aprs_paths.size();
 	if (paths == 1) {		// no frequency hopping, just send a report
 		if (!check_gpio(0)) return -1;
@@ -719,6 +819,11 @@ int beacon() {		// try to send an APRS beacon
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
 			if (time(NULL) - aprs_paths[i].lastused < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
 			if (!check_gpio(i)) continue;	// skip if gpio says no
+			if (aprs_paths[i].aprsis) {		// try immediately if this is an internet path
+				if (send_pos_report(i)) {
+					return i;
+				} else continue;		// skip to the next if it failed
+			}
 			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
 				if (!is_visible(i)) {
 					if (fh_debug) printf("FH_DEBUG: %s not visible.\n", aprs_paths[i].sat.c_str());
@@ -729,7 +834,6 @@ int beacon() {		// try to send an APRS beacon
 			}
 			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
 			send_pos_report(i);					// passed all the tests. send a beacon.
-			time(&aprs_paths[i].lastused);		// update lastused time
 			if (aprs_paths[i].hf) return i;		// don't bother listening for a digi on hf.
 			sleep(6);
 			if (last_heard > 15) {		// probably didn't get digi'd.
