@@ -732,10 +732,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	res = curl_easy_perform(curl);
 
 	if (tnc_debug) {
-		string line;
-		getline(buff, line);
-		getline(buff, line);
-		printf("TNC_OUT(is): %s\n", line.c_str());
+		printf("TNC_OUT(is): %s\n", buff.str().c_str());
 	}
 
 	// a little cleanup...
