@@ -366,7 +366,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.sat = readconfig.Get(path_s, "sat", "");
 		thispath.min_ele = readconfig.GetInteger(path_s, "min_ele", 0);
 		thispath.hf = readconfig.GetBoolean(path_s, "hf", false);
-		thispath.aprsis = readconfig.GetBoolean(path_s, "aprsis", false);
+		thispath.aprsis = readconfig.GetBoolean(path_s, "inet", false);
 		if (thispath.aprsis) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
 		thispath.retry = readconfig.GetBoolean(path_s, "retry", true);
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
@@ -410,7 +410,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		pathidx++;
 		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
-		if (readconfig.GetInteger(pathsect.str(), "freq", 0) == 0) break;
+		if (readconfig.GetInteger(pathsect.str(), "freq", 0) == 0 && !readconfig.GetBoolean(pathsect.str(), "inet", false)) break;
 	}
 	if (verbose) printf("Found %i APRS paths.\n", aprs_paths.size());
 
@@ -690,7 +690,8 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	buff << "user " << aprsis_user << " pass " << aprsis_pass << " vers PiCrumbs " << VERSION;
 	aprsis_postdata = buff.str();
 	aprsis_postdata.append("\n");
-	buff.str(source);	// clear buff and add source
+	buff.str(string());	// clear buff and add source
+	buff << source;
 	if (source_ssid != 0) buff << '-' << source_ssid;
 	buff << '>' << destination;
 	if (destination_ssid != 0) buff << '-' << destination_ssid;
@@ -726,8 +727,8 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 3);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buff.str().c_str());
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, buff.str().length());
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, aprsis_postdata.c_str());
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,aprsis_postdata.length());
 
 	res = curl_easy_perform(curl);
 
@@ -815,12 +816,12 @@ int beacon() {		// try to send an APRS beacon
 		for (int i=0;i<paths;i++) {		// loop thru all paths
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
 			if (time(NULL) - aprs_paths[i].lastused < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
-			if (!check_gpio(i)) continue;	// skip if gpio says no
 			if (aprs_paths[i].aprsis) {		// try immediately if this is an internet path
 				if (send_pos_report(i)) {
 					return i;
 				} else continue;		// skip to the next if it failed
 			}
+			if (!check_gpio(i)) continue;	// skip if gpio says no
 			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
 				if (!is_visible(i)) {
 					if (fh_debug) printf("FH_DEBUG: %s not visible.\n", aprs_paths[i].sat.c_str());
