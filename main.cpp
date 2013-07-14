@@ -110,6 +110,7 @@ float pos_lon;						// current longitude
 string pos_lon_dir;					// current longitude direction
 unsigned short int pos_alt;			// current altitude in meters
 struct tm * gps_time = new tm;		// last time received from the gps (if enabled)
+bool gps_tm_sync = false;			// should we sync the system time to gps time?
 float gps_speed;					// speed from gps, in knots
 short int gps_hdg;					// heading from gps
 int static_beacon_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
@@ -304,6 +305,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
 	string gps_port  = readconfig.Get("gps", "port", "/dev/ttyS1");
 	unsigned int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
+	gps_tm_sync = readconfig.GetBoolean("gps", "tm_sync", false);
 
 	beacon_comment = readconfig.Get("beacon", "comment", "");
 	compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
@@ -601,7 +603,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 			if (thisone.last) break;
 		}
 	}
-	payload = data.substr(index+2, string::npos);		// all the way to the end of the frame, but skip control bytes
+	payload = data.substr(index+2);		// all the way to the end of the frame, but skip control bytes
 	if (tnc_debug) {									// spit out this packet to the user in tnc2 format
 		string viastr;
 		char * viatemp = new char[8];
@@ -740,7 +742,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	curl_easy_cleanup(curl);
 	curl_slist_free_all(headerlist);
 
-	if (curl_debug) printf("CURL_DEBUG: HTTP request produced %i.\n", res);
+	if (curl_debug) printf("CURL_DEBUG: HTTP request returned %i.\n", res);
 
 	return (res == CURLE_OK);
 }	// END OF 'send_aprsis_http'
@@ -849,6 +851,7 @@ int beacon() {		// try to send an APRS beacon
 } // END OF 'beacon'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
+	unsigned char clock_sync = 60;
 	string buff = "";
 	char * data = new char[1];
 
@@ -880,6 +883,16 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 						pos_lon_dir = params[5];
 						gps_speed = atof(params[6].c_str());
 						gps_hdg = atoi(params[7].c_str());
+						if (gps_tm_sync && clock_sync++ >= 60) {
+							long int now = time(NULL);
+							timeval tv;
+							tv.tv_sec = mktime(gps_time);
+							if (tv.tv_sec != now) {
+								int rt = settimeofday(&tv, NULL);
+								if (verbose) printf("Bumping system clock by %li seconds.\n", tv.tv_sec - now);
+							}
+							clock_sync = 0;
+						}
 						if (gps_debug) {
 							mktime(gps_time);	// update tm_wday
 							printf("GPS_DEBUG: Lat:%f%s Long:%f%s MPH:%.2f Hdg:%i Time:%s", pos_lat, pos_lat_dir.c_str(), pos_lon, pos_lon_dir.c_str(), gps_speed * 1.15078, gps_hdg, asctime(gps_time));
