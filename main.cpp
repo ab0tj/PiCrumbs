@@ -85,15 +85,15 @@ struct aprspath {
 string mycall;						// callsign we're operating under, excluding ssid
 unsigned char myssid;				// ssid of this station (stored as a number, not ascii)
 bool compress_pos;					// should we compress the aprs packet?
-string symbol_table;				// which symbol table to use
-string symbol_char;					// which symbol to use from the table
+char symbol_table;				// which symbol table to use
+char symbol_char;					// which symbol to use from the table
 unsigned short int sb_low_speed;	// SmartBeaconing low threshold, in mph
 unsigned int sb_low_rate;			// SmartBeaconing low rate
 unsigned short int sb_high_speed;	// SmartBeaconing high threshold, in mph
 unsigned int sb_high_rate;			// SmartBeaconing high rate
 unsigned short int sb_turn_min;		// SmartBeaconing turn minimum (deg)
 unsigned short int sb_turn_time;	// SmartBeaconing turn time (minimum)
-short int sb_turn_slope;			// SmartBeaconing turn slope
+unsigned short int sb_turn_slope;	// SmartBeaconing turn slope
 bool verbose = false;				// did the user ask for verbose mode?
 bool gps_debug = false;				// did the user ask for gps debug info?
 bool tnc_debug = false;				// did the user ask for tnc debug info?
@@ -105,19 +105,17 @@ int hf_tnc_iface = -1;				// hf tnc serial port fd
 int gps_iface = -1;					// gps serial port fd
 bool beacon_ok = false;				// should we be sending beacons?
 float pos_lat;						// current latitude
-string pos_lat_dir;					// latitude direction
+char pos_lat_dir;					// latitude direction
 float pos_lon;						// current longitude
-string pos_lon_dir;					// current longitude direction
+char pos_lon_dir;					// current longitude direction
 unsigned short int pos_alt;			// current altitude in meters
 struct tm * gps_time = new tm;		// last time received from the gps (if enabled)
 bool gps_tm_sync = false;			// should we sync the system time to gps time?
 float gps_speed;					// speed from gps, in knots
 short int gps_hdg;					// heading from gps
-int static_beacon_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+unsigned int static_beacon_rate;	// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 string beacon_comment;				// comment to send along with aprs packets
-vector<aprspath> aprs_paths;		// APRS frequencies to try, in order of preference
-//vector<string> path_calls;		// path callsigns
-//vector<char> path_ssids;			// path ssids
+vector<aprspath> aprs_paths;		// APRS paths to try, in order of preference
 unsigned int last_heard = 16;		// time since we heard a station on vhf
 string temp_file;					// file to get 1-wire temp info from, blank to disable
 bool temp_f;						// temp units: false for C, true for F
@@ -152,7 +150,7 @@ int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 		return B50;
 	case 75:
 		return B75;
-	case 100:
+	case 110:
 		return B110;
 	case 134:
 		return B134;
@@ -233,7 +231,7 @@ int open_port(string port, int baud_code, bool blocking) {			// open a serial po
 
 void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string configfile = "/etc/picrumbs.conf";
-	HAMLIB_API::rig_set_debug(RIG_DEBUG_NONE);
+	HAMLIB_API::rig_set_debug(RIG_DEBUG_NONE);	// tell hamlib to STFU unless asked
 
 // COMMAND LINE ARGUMENT PARSING
 		if (argc > 1) {		// user entered command line arguments
@@ -275,7 +273,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	}
 
 	if (verbose) printf("Using config file %s\n", configfile.c_str());
-
+ // station info
 	string call = readconfig.Get("station", "mycall", "N0CALL");	// parse the mycall config paramater
 	int index = call.find_first_of("-");
 	if (index == -1) {	// no ssid specified
@@ -293,24 +291,24 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		fprintf(stderr,"MYCALL: Station SSID must be between 0 and 15.\n");
 		exit (EXIT_FAILURE);
 	}
-	if (verbose) printf("Operating as %s-%i\n", mycall.c_str(), myssid);		// whew, we made it through all the tests
-
+	if (verbose) printf("Operating as %s-%i\n", mycall.c_str(), myssid);
+ // tnc config
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
 	unsigned int vhf_tnc_baud = readconfig.GetInteger("vhf_tnc", "baud", 9600);
 
 	bool hf_tnc_enable = readconfig.GetBoolean("hf_tnc", "enable", false);
 	string hf_tnc_port = readconfig.Get("hf_tnc", "port", "/dev/ttyS2");
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
-
+ // gps config
 	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
 	string gps_port  = readconfig.Get("gps", "port", "/dev/ttyS1");
 	unsigned int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
 	gps_tm_sync = readconfig.GetBoolean("gps", "tm_sync", false);
-
+ // beacon config
 	beacon_comment = readconfig.Get("beacon", "comment", "");
 	compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
-	symbol_table = readconfig.Get("beacon", "symbol_table", "/");
-	symbol_char = readconfig.Get("beacon", "symbol", "/");
+	symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
+	symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
 	temp_file = readconfig.Get("beacon", "temp_file", "");
 	temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
 	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
@@ -321,9 +319,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
 	sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
 	sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
-
+ // sat tracking config
 	predict_path = readconfig.Get("predict", "path", "");
-
+ // gpio config
 	gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
 	gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
 	gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
@@ -335,17 +333,17 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		pinMode(gpio_vhf_en, INPUT);
 		pullUpDnControl(gpio_vhf_en, PUD_UP);
 	}
-
+ // hamlib config
 	bool hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
-	string hamlib_baud = readconfig.Get("radio", "baud", "9600");
-	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);
-
+	string hamlib_baud = readconfig.Get("radio", "baud", "9600");		// hamlib doesn't want an int here
+	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);	// dummy rig as default
+ // aprs-is config
 	aprsis_server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
 	aprsis_port = readconfig.GetInteger("aprsis", "port", 8080);
 	aprsis_user = readconfig.Get("aprsis", "user", mycall);
 	aprsis_pass = readconfig.Get("aprsis", "pass", "-1");
-
+ // aprs-is path config
 	unsigned int pathidx = 1;	// now we will parse the APRS paths.
 	stringstream pathsect;
 	pathsect << "path" << "1";
@@ -408,12 +406,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			}
 		}
 
-		aprs_paths.push_back(thispath);
+		aprs_paths.push_back(thispath);		// add path to path vector
 		pathidx++;
 		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
-		if (readconfig.GetInteger(pathsect.str(), "freq", 0) == 0 && !readconfig.GetBoolean(pathsect.str(), "inet", false)) break;
-	}
+		if (readconfig.GetInteger(pathsect.str(), "freq", 0) == 0 && !readconfig.GetBoolean(pathsect.str(), "inet", false)) break;	// quit parsing if this is the last path
+	}																																// there's probably better ways to check for this
 	if (verbose) printf("Found %i APRS paths.\n", aprs_paths.size());
 
 // OPEN TNC INTERFACE(s)
@@ -423,35 +421,35 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	int baud_code = get_baud(vhf_tnc_baud);
 
 	if (baud_code == -1) {		// get_baud says that's an invalid baud rate
-		fprintf(stderr, "Invalid TNC baud rate %i\n", vhf_tnc_baud);
+		fprintf(stderr, "Invalid VHF TNC baud rate %i\n", vhf_tnc_baud);
 		exit (EXIT_FAILURE);
 	}
 
 	vhf_tnc_iface = open_port(vhf_tnc_port, baud_code, false);	// use nonblocking reads for soundmodem compatibility
 
 	if (vhf_tnc_iface == -1) {		// couldn't open the serial port...
-		fprintf(stderr, "Could not open TNC port %s\n", vhf_tnc_port.c_str());
+		fprintf(stderr, "Could not open VHF TNC port %s\n", vhf_tnc_port.c_str());
 		exit (EXIT_FAILURE);
 	}
 
-	if (verbose) printf("Successfully opened TNC port %s at %i baud\n", vhf_tnc_port.c_str(), vhf_tnc_baud);
+	if (verbose) printf("Successfully opened VHF TNC port %s at %i baud\n", vhf_tnc_port.c_str(), vhf_tnc_baud);
 
 	if (hf_tnc_enable) {
 		baud_code = get_baud(hf_tnc_baud);
 
 		if (baud_code == -1) {		// get_baud says that's an invalid baud rate
-			fprintf(stderr, "Invalid TNC baud rate %i\n", hf_tnc_baud);
+			fprintf(stderr, "Invalid HF TNC baud rate %i\n", hf_tnc_baud);
 			exit (EXIT_FAILURE);
 		}
 
 		hf_tnc_iface = open_port(hf_tnc_port, baud_code, false);	// use nonblocking reads for soundmodem compatibility
 
 		if (hf_tnc_iface == -1) {		// couldn't open the serial port...
-			fprintf(stderr, "Could not open TNC port %s\n", hf_tnc_port.c_str());
+			fprintf(stderr, "Could not open HF TNC port %s\n", hf_tnc_port.c_str());
 			exit (EXIT_FAILURE);
 		}
 
-		if (verbose) printf("Successfully opened TNC port %s at %i baud\n", hf_tnc_port.c_str(), hf_tnc_baud);
+		if (verbose) printf("Successfully opened HF TNC port %s at %i baud\n", hf_tnc_port.c_str(), hf_tnc_baud);
 	}
 
 // OPEN GPS INTERFACE
@@ -472,7 +470,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		}
 
 		if (verbose) printf("Successfully opened GPS port %s at %i baud\n", gps_port.c_str(), gps_baud);
-	} else beacon_ok = true;	// gps not enabled, use static beacons
+	} else beacon_ok = true;	// gps not enabled, use static beacons TODO: static beacon config
 
 	// OPEN RIG INTERFACE
 	if (hamlib_enable) {
@@ -495,9 +493,9 @@ bool is_visible(int path) {	// use PREDICT to figure out if this sat is around t
 	if (predict_path.compare("") == 0) return false;	// short circuit if predict not defined
 	ofstream qthfile;
 	float lat = pos_lat;
-	if (pos_lat_dir.compare("S") == 0) lat = -lat;
+	if (pos_lat_dir == 'S') lat = -lat;
 	float lon = pos_lon;
-	if (pos_lon_dir.compare("E") == 0) lon = -lon;		// PREDICT expects negative values for east
+	if (pos_lon_dir == 'E') lon = -lon;		// PREDICT expects negative values for east
 	qthfile.open("/tmp/picrumbs.qth", ios::trunc);		// PREDICT doesn't seem to be able to take a location via command line, so we need to build a "qth file" based on the current position.
 	qthfile.precision(6);
 	qthfile << fixed;
@@ -546,7 +544,6 @@ bool tune_radio(int path) {		// use hamlib to turn the radio to the freq and mod
 }	// END OF 'tune_radio'
 
 bool check_gpio(int path) {		// check to see if gpio says we can use this path
-	if (!gpio_enable) return true;	// short circuit if gpio is disabled
 	bool ok;
 	if (aprs_paths[path].hf) {
 		ok = (digitalRead(gpio_hf_en) == 0);
@@ -579,50 +576,48 @@ char encode_ax25_ssid(char ssid, bool hbit, bool last) {	// format an ax25 ssid 
 } // END OF 'encode_ax25_ssid'
 
 void process_ax25_frame(string data) {		// listen for our own packets and update last heard var
-	ax25address destination;
 	ax25address source;
-	vector<ax25address> via;
-	string payload;
-	destination.callsign = data.substr(0,6);
-	destination.ssid = data[6];
-	destination.decode();
+
 	source.callsign = data.substr(7,6);
 	source.ssid = data[13];
 	source.decode();
-	int index = 14;
-	int viacalls = 0;
-	if (!source.last) {		// skip if no digis in address field
-		ax25address thisone;
-		while (true) {
-			thisone.callsign = data.substr(index,6);
-			thisone.ssid = data[index+6];
-			thisone.decode();
-			via.push_back(thisone);
-			viacalls++;
-			index += 7;
-			if (thisone.last) break;
-		}
-	}
-	payload = data.substr(index+2);		// all the way to the end of the frame, but skip control bytes
-	if (tnc_debug) {									// spit out this packet to the user in tnc2 format
-		string viastr;
-		char * viatemp = new char[8];
-		for (int i=0;i<viacalls;i++) {
-			sprintf(viatemp, ",%s", via[i].callsign.c_str());
-			viastr.append(viatemp);
-			if (via[i].ssid != 0) {						// add the ssid only if it's not 0
-				sprintf(viatemp, "-%i", via[i].ssid);
-				viastr.append(viatemp);
+
+	if (tnc_debug) {					// process the rest of the frame and print it out
+		ax25address destination;
+		vector<ax25address> via;
+		string payload;
+
+		destination.callsign = data.substr(0,6);
+		destination.ssid = data[6];
+		destination.decode();
+		int index = 14;
+		int viacalls = 0;
+		if (!source.last) {		// skip if no digis in address field
+			ax25address thisone;
+			while (true) {
+				thisone.callsign = data.substr(index,6);
+				thisone.ssid = data[index+6];
+				thisone.decode();
+				via.push_back(thisone);
+				viacalls++;
+				index += 7;
+				if (thisone.last) break;
 			}
-			if (via[i].hbit) viastr.append("*");
 		}
-		delete viatemp;
+		payload = data.substr(index+2);		// all the way to the end of the frame, but skip control bytes
+
 		printf("TNC_IN: %s", source.callsign.c_str());
 		if (source.ssid != 0) printf("-%i", source.ssid);
 		printf(">%s", destination.callsign.c_str());
 		if (destination.ssid != 0) printf("-%i", destination.ssid);
-		printf("%s:%s\n", viastr.c_str(), payload.c_str());
+		for (int i=0;i<viacalls;i++) {
+			printf(",%s", via[i].callsign.c_str());
+			if (via[i].ssid != 0) printf("-%i", via[i].ssid);
+			if (via[i].hbit) printf("*");
+		}
+		printf(":%s\n", payload.c_str());
 	}
+
 	if ((source.callsign.compare(mycall) == 0) && source.ssid == myssid) {
 		if (tnc_debug) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", last_heard);
 		last_heard = 0;	// clear last_heard if we were successfully digi'd.
@@ -686,7 +681,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	struct curl_slist *headerlist = NULL;
 	stringstream aprsis_url;
 	stringstream buff;
-	string aprsis_postdata;
+	string aprsis_postdata;		// we'll build this in a string since stringstream seems to drop newlines
 
 	// first, build the TNC2 packet
 	buff << "user " << aprsis_user << " pass " << aprsis_pass << " vers PiCrumbs " << VERSION;
@@ -753,15 +748,15 @@ bool send_pos_report(int path = 0) {		// exactly what it sounds like
 	char* pos = new char[21];
 	if (compress_pos) {		// build compressed position report, yes, byte by byte.
 		pos[0] = '!';		// realtime position, no messaging
-		pos[1] = symbol_table[0];
+		pos[1] = symbol_table;
 		float lat;
 		float lon;
 		float lat_min = modf(pos_lat/100, &lat);	// separate deg and min
 		float lon_min = modf(pos_lon/100, &lon);
 		lat += (lat_min/.6);	// convert min to deg and re-add it
 		lon += (lon_min/.6);
-		if (strcmp(pos_lat_dir.c_str(), "S") == 0) lat = -lat;	// assign direction sign
-		if (strcmp(pos_lon_dir.c_str(), "W") == 0) lon = -lon;
+		if (pos_lat_dir == 'S') lat = -lat;	// assign direction sign
+		if (pos_lon_dir == 'W') lon = -lon;
 		lat = 380926 * (90 - lat);		// formula from aprs spec
 		lon = 190463 * (180 + lon);
 		pos[2] = (int)lat / 753571 + 33;	// lat/91^3+33
@@ -776,16 +771,17 @@ bool send_pos_report(int path = 0) {		// exactly what it sounds like
 		lon = (int)lon % 8281;
 		pos[8] = (int)lon / 91 + 33;
 		pos[9] = (int)lon % 91 + 33;
-		pos[10] = symbol_char[0];
+		pos[10] = symbol_char;
 		pos[11] = gps_hdg / 4 + 33;
 		pos[12] = log(gps_speed+1)/log(1.08) + 33;
 		pos[13] = 0x5F;			// set "T" byte
 		pos[14] = 0x00;			// (null terminated string)
 	} else {	// uncompressed packet
-		sprintf(pos, "!%02.2f%s%s%03.2f%s%s", pos_lat, pos_lat_dir.c_str(), symbol_table.c_str(), pos_lon, pos_lon_dir.c_str(), symbol_char.c_str());
+		sprintf(pos, "!%02.2f%c%c%03.2f%c%c", pos_lat, pos_lat_dir, symbol_table, pos_lon, pos_lon_dir, symbol_char);
 	}
 	stringstream buff;
 	buff << pos;
+	delete pos;		// memory leak fixed
 	if (temp_file.compare("") != 0) {	// user specified a temp sensor is available
 		float t = get_temp();
 		if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
@@ -798,7 +794,6 @@ bool send_pos_report(int path = 0) {		// exactly what it sounds like
 		}
 	}
 	buff << beacon_comment;
-	delete pos;		// memory leak fixed
 	if (aprs_paths[path].aprsis) {
 		return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
 	} else {
@@ -811,7 +806,7 @@ int beacon() {		// try to send an APRS beacon
 	if (last_heard < 10) return -1;		// hardcoded rate limiting
 	int paths = aprs_paths.size();
 	if (paths == 1) {		// no frequency hopping, just send a report
-		if (!check_gpio(0)) return -1;
+		if (gpio_enable && !check_gpio(0)) return -1;
 		send_pos_report();
 		return 0;
 	} else {
@@ -823,13 +818,13 @@ int beacon() {		// try to send an APRS beacon
 					return i;
 				} else continue;		// skip to the next if it failed
 			}
-			if (!check_gpio(i)) continue;	// skip if gpio says no
+			if (gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
 			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
-				if (!is_visible(i)) {
+				if (is_visible(i)) {
+					if (fh_debug) printf("FH_DEBUG: %s is visible.\n", aprs_paths[i].sat.c_str());
+				} else {
 					if (fh_debug) printf("FH_DEBUG: %s not visible.\n", aprs_paths[i].sat.c_str());
 					continue;			// skip this path is this sat isn't visible
-				} else {
-					if (fh_debug) printf("FH_DEBUG: %s is visible.\n", aprs_paths[i].sat.c_str());
 				}
 			}
 			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
@@ -839,19 +834,20 @@ int beacon() {		// try to send an APRS beacon
 			if (last_heard > 15) {		// probably didn't get digi'd.
 				if (!aprs_paths[i].retry) continue;		// move on to the next one if we aren't allowed to retry here
 				if (fh_debug) printf("FH_DEBUG: Retrying.\n");
+				if (!tune_radio(i)) continue;	// just in case user is messing with radio when we want to retry
 				send_pos_report(i);				// try again
 				sleep(6);
 				if (last_heard < 15) return i;	// must have worked this time
 			} else {
 				return i;							// we did get digi'd
 			}
-		}
-		return -1;
+		}	// if we made it this far, we didn't get a packet thru, loop to next path
+		return -1;	// if we made it this far we are totally outta luck. return failure.
 	}
 } // END OF 'beacon'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
-	unsigned char clock_sync = 60;
+	unsigned char clock_sync = 60;	// sync as soon as we have a gps fix
 	string buff = "";
 	char * data = new char[1];
 
@@ -869,37 +865,37 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 						params[a] = buff.substr(current, next - current);
 						current = next + 1;
 					}
-					if (params[1].compare("A") == 0) {
+					if (params[1].compare("A") == 0) {	// GPS says data is valid.
 						beacon_ok = true;
 						gps_time->tm_hour = atoi(params[0].substr(0,2).c_str());
 						gps_time->tm_min = atoi(params[0].substr(2,2).c_str());
 						gps_time->tm_sec = atoi(params[0].substr(4,2).c_str());
 						gps_time->tm_mday = atoi(params[8].substr(0,2).c_str());
 						gps_time->tm_mon = atoi(params[8].substr(2,2).c_str()) - 1;		// tm_mon is 0-11
-						gps_time->tm_year = atoi(params[8].substr(4,2).c_str()) + 100; 	// tm_year is "years since 1900", and apparently GPRMC isn't Y2.1K compliant.
+						gps_time->tm_year = atoi(params[8].substr(4,2).c_str()) + 100; 	// tm_year is "years since 1900", and apparently GPRMC isn't Y2K compliant.
 						pos_lat = atof(params[2].c_str());
-						pos_lat_dir = params[3];
+						pos_lat_dir = params[3][0];
 						pos_lon = atof(params[4].c_str());
-						pos_lon_dir = params[5];
+						pos_lon_dir = params[5][0];
 						gps_speed = atof(params[6].c_str());
 						gps_hdg = atoi(params[7].c_str());
 						if (gps_tm_sync && clock_sync++ >= 60) {
-							long int now = time(NULL);
 							timeval tv;
 							tv.tv_sec = mktime(gps_time);
+							long int now = time(NULL);
 							if (tv.tv_sec != now) {
-								int rt = settimeofday(&tv, NULL);
+								int rt = settimeofday(&tv, NULL);		// set system clock to match gps
 								if (verbose) printf("Bumping system clock by %li seconds.\n", tv.tv_sec - now);
 							}
 							clock_sync = 0;
 						}
 						if (gps_debug) {
 							mktime(gps_time);	// update tm_wday
-							printf("GPS_DEBUG: Lat:%f%s Long:%f%s MPH:%.2f Hdg:%i Time:%s", pos_lat, pos_lat_dir.c_str(), pos_lon, pos_lon_dir.c_str(), gps_speed * 1.15078, gps_hdg, asctime(gps_time));
+							printf("GPS_DEBUG: Lat:%f%c Long:%f%c MPH:%.2f Hdg:%i Time:%s", pos_lat, pos_lat_dir, pos_lon, pos_lon_dir, gps_speed * 1.15078, gps_hdg, asctime(gps_time));
 						}
 					} else {
 						beacon_ok = false;
-						if (gps_debug) printf("GPS_DEBUG: data invalid.\n");
+						if (gps_debug) printf("GPS_DEBUG: no fix or invalid data.\n");
 					}
 				}
 				if (buff.compare(0, 6, "$GPGGA") == 0) {	// GPGGA has the altitude
@@ -1003,9 +999,9 @@ int main(int argc, char* argv[]) {
 	while (true) {								// then send them periodically after that
 		if (beacon_timer >= beacon_rate) {		// if it's time...
 			while (!beacon_ok) sleep (1);		// wait if gps data not valid
-			if (beacon() > 0) {
+			if (beacon() > 0) {					// send a beacon
 				sleep(5);
-				tune_radio(0);	// send a beacon, retune if necessary
+				tune_radio(0);					// retune if necessary
 			}
 			beacon_timer = 0;
 			hdg_change = 0;
