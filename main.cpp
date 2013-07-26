@@ -82,52 +82,54 @@ struct aprspath {
 };
 
 // GLOBAL VARS GO HERE
-string mycall;						// callsign we're operating under, excluding ssid
-unsigned char myssid;				// ssid of this station (stored as a number, not ascii)
-bool compress_pos;					// should we compress the aprs packet?
-char symbol_table;				// which symbol table to use
-char symbol_char;					// which symbol to use from the table
-unsigned short int sb_low_speed;	// SmartBeaconing low threshold, in mph
-unsigned int sb_low_rate;			// SmartBeaconing low rate
-unsigned short int sb_high_speed;	// SmartBeaconing high threshold, in mph
-unsigned int sb_high_rate;			// SmartBeaconing high rate
-unsigned short int sb_turn_min;		// SmartBeaconing turn minimum (deg)
-unsigned short int sb_turn_time;	// SmartBeaconing turn time (minimum)
-unsigned short int sb_turn_slope;	// SmartBeaconing turn slope
-bool verbose = false;				// did the user ask for verbose mode?
-bool gps_debug = false;				// did the user ask for gps debug info?
-bool tnc_debug = false;				// did the user ask for tnc debug info?
-bool sb_debug = false;				// did the user ask for smartbeaconing info?
-bool fh_debug = false;				// did the user ask for frequency hopping info?
-bool curl_debug = false;			// let libcurl show verbose info?
-int vhf_tnc_iface = -1;				// vhf tnc serial port fd
-int hf_tnc_iface = -1;				// hf tnc serial port fd
-int gps_iface = -1;					// gps serial port fd
-bool beacon_ok = false;				// should we be sending beacons?
-float pos_lat;						// current latitude
-char pos_lat_dir;					// latitude direction
-float pos_lon;						// current longitude
-char pos_lon_dir;					// current longitude direction
-unsigned short int pos_alt;			// current altitude in meters
-struct tm * gps_time = new tm;		// last time received from the gps (if enabled)
-bool gps_tm_sync = false;			// should we sync the system time to gps time?
-float gps_speed;					// speed from gps, in knots
-short int gps_hdg;					// heading from gps
-unsigned int static_beacon_rate;	// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
-string beacon_comment;				// comment to send along with aprs packets
-vector<aprspath> aprs_paths;		// APRS paths to try, in order of preference
-unsigned int last_heard = 16;		// time since we heard a station on vhf
-string temp_file;					// file to get 1-wire temp info from, blank to disable
-bool temp_f;						// temp units: false for C, true for F
-string predict_path;				// path to PREDICT program
-Rig* radio;							// radio control interface
-bool gpio_enable;					// can we use gpio pins
-unsigned char gpio_hf_en;			// gpio pin for hf enable
-unsigned char gpio_vhf_en;			// gpio pin for vhf enable
-string aprsis_server;				// APRS-IS server name/IP
-unsigned short int aprsis_port;		// APRS-IS port number
-string aprsis_user;					// APRS-IS username/callsign
-string aprsis_pass;					// APRS-IS password
+string mycall;							// callsign we're operating under, excluding ssid
+unsigned char myssid;					// ssid of this station (stored as a number, not ascii)
+bool compress_pos;						// should we compress the aprs packet?
+char symbol_table;						// which symbol table to use
+char symbol_char;						// which symbol to use from the table
+unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
+unsigned int sb_low_rate;				// SmartBeaconing low rate
+unsigned short int sb_high_speed;		// SmartBeaconing high threshold, in mph
+unsigned int sb_high_rate;				// SmartBeaconing high rate
+unsigned short int sb_turn_min;			// SmartBeaconing turn minimum (deg)
+unsigned short int sb_turn_time;		// SmartBeaconing turn time (minimum)
+unsigned short int sb_turn_slope;		// SmartBeaconing turn slope
+bool verbose = false;					// did the user ask for verbose mode?
+bool gps_debug = false;					// did the user ask for gps debug info?
+bool tnc_debug = false;					// did the user ask for tnc debug info?
+bool sb_debug = false;					// did the user ask for smartbeaconing info?
+bool fh_debug = false;					// did the user ask for frequency hopping info?
+bool curl_debug = false;				// let libcurl show verbose info?
+int vhf_tnc_iface = -1;					// vhf tnc serial port fd
+int hf_tnc_iface = -1;					// hf tnc serial port fd
+int gps_iface = -1;						// gps serial port fd
+bool beacon_ok = false;					// should we be sending beacons?
+float pos_lat;							// current latitude
+char pos_lat_dir;						// latitude direction
+float pos_lon;							// current longitude
+char pos_lon_dir;						// current longitude direction
+unsigned short int pos_alt;				// current altitude in meters
+struct tm * gps_time = new tm;			// last time received from the gps (if enabled)
+bool gps_tm_sync = false;				// should we sync the system time to gps time?
+float gps_speed;						// speed from gps, in knots
+short int gps_hdg;						// heading from gps
+unsigned int static_beacon_rate;		// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+string beacon_comment;					// comment to send along with aprs packets
+vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
+unsigned int last_heard = 16;			// time since we heard a station on vhf
+string temp_file;						// file to get 1-wire temp info from, blank to disable
+bool temp_f;							// temp units: false for C, true for F
+string predict_path;					// path to PREDICT program
+Rig* radio;								// radio control interface reference
+bool gpio_enable;						// can we use gpio pins
+unsigned char gpio_hf_en;				// gpio pin for hf enable
+unsigned char gpio_vhf_en;				// gpio pin for vhf enable
+string aprsis_server;					// APRS-IS server name/IP
+unsigned short int aprsis_port;			// APRS-IS port number
+string aprsis_proxy;					// HTTP proxy to use for APRS-IS
+unsigned short int aprsis_proxy_port;	// HTTP proxy port
+string aprsis_user;						// APRS-IS username/callsign
+string aprsis_pass;						// APRS-IS password
 
 // BEGIN FUNCTIONS
 void find_and_replace(string& subject, const string& search, const string& replace) {	// find and replace in a string, thanks Czarek Tomczak
@@ -341,6 +343,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
  // aprs-is config
 	aprsis_server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
 	aprsis_port = readconfig.GetInteger("aprsis", "port", 8080);
+	aprsis_proxy = readconfig.Get("aprsis", "proxy", "");
+	aprsis_proxy_port = readconfig.GetInteger("aprsis", "proxy_port", 1080);
 	aprsis_user = readconfig.Get("aprsis", "user", mycall);
 	aprsis_pass = readconfig.Get("aprsis", "pass", "-1");
  // aprs-is path config
@@ -720,6 +724,8 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	headerlist = curl_slist_append(headerlist, "Content-Type: application/octet-stream");
 	aprsis_url << "http://" << aprsis_server << ':' << aprsis_port;
 	curl_easy_setopt(curl, CURLOPT_URL, aprsis_url.str().c_str());
+	curl_easy_setopt(curl, CURLOPT_PROXY, aprsis_proxy.c_str());
+	curl_easy_setopt(curl, CURLOPT_PROXYPORT, aprsis_proxy_port);
 	curl_easy_setopt(curl, CURLOPT_POST, 1);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
@@ -737,7 +743,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	curl_easy_cleanup(curl);
 	curl_slist_free_all(headerlist);
 
-	if (curl_debug) printf("CURL_DEBUG: HTTP request returned %i.\n", res);
+	if (fh_debug && res != CURLE_OK) printf("APRS-IS upload failed. (%i: %s)\n", res, curl_easy_strerror(res));
 
 	return (res == CURLE_OK);
 }	// END OF 'send_aprsis_http'
@@ -816,7 +822,7 @@ int beacon() {		// try to send an APRS beacon
 			if (aprs_paths[i].aprsis) {		// try immediately if this is an internet path
 				if (send_pos_report(i)) {
 					return i;
-				} else continue;		// skip to the next if it failed
+				} else continue;		// skip to the next path
 			}
 			if (gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
 			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
@@ -971,6 +977,7 @@ void cleanup(int sign) {	// clean up after catching ctrl-c
 	close(hf_tnc_iface);
 	close(gps_iface);
 	radio->close();
+	curl_global_cleanup();
 	exit (EXIT_SUCCESS);
 } // END OF 'cleanup'
 
