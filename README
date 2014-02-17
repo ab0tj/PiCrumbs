@@ -1,5 +1,30 @@
 PiCrumbs, Alpha version 0.1
 
+DESCRIPTION:
+
+An intelligent APRS tracker for Linux. I created this for my own personal use
+but I welcome outside use and/or contributions. The idea was to create the most
+robust tracker possible for my offroad adventures, where someone knowing where you
+are could mean the difference between life and death in an emergency.
+
+PiCrumbs was created for a Raspberry Pi and soundmodem combo. It should work fine
+on any Linux system and with any KISS TNCs. It has support for VHF (1200 baud),
+HF (300 baud), VHF satellite, and HTTP internet beaconing. It works from a user
+defined list of paths to try sending a packet. If it "thinks" it was not successful
+in sending a packet, it will try again or move on to the next path, depending on
+the settings provided by the user. It will automatically tune any radio supported
+by Hamlib.
+
+Determination of success or failure on VHF channels is based on the tracker
+"hearing" its packets being repeated by a digipeater. This is not a perfect way to
+determine if the packet got through, as mobile packet reception can be flaky.
+Therefore, the tracker MUST be used with a radio that has a receiver if you want
+to use the frequency hopping features. For the same reason, it is recommended you
+don't use the VHF APRS channel too agressively as you may annoy your fellow hams.
+HF channel usage should be a last resort only, and should be used sparingly.
+
+USAGE:
+
 Type ./build.sh to build PiCrumbs. libhamlib-dev, libhamlib++-dev and wiringPi
 are required.
 
@@ -8,3 +33,8 @@ file should be saved to /etc/picrumbs.conf
 
 PiCrumbs needs to have access to all the files you specify in the config file.
 Change permissions as necessary or run it as root.
+
+CONTACT:
+
+Feel free to contact me with questions, suggestions, or contributions. My email
+address is listed on QRZ. 

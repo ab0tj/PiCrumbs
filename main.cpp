@@ -290,7 +290,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		exit (EXIT_FAILURE);
 	}
 	if (myssid < 0 or myssid > 15) {
-		fprintf(stderr,"MYCALL: Station SSID must be between 0 and 15.\n");
+		fprintf(stderr,"MYCALL: Station SSID must be between 0 and 15.\n"); // TODO: We don't care about this if it doesn't need to go over-the-air.
 		exit (EXIT_FAILURE);
 	}
 	if (verbose) printf("Operating as %s-%i\n", mycall.c_str(), myssid);
@@ -771,7 +771,7 @@ bool send_pos_report(int path = 0) {		// exactly what it sounds like
 		lat = (int)lat % 8281;				// remainder
 		pos[4] = (int)lat / 91 + 33;		// remainder/91^1+33
 		pos[5] = (int)lat % 91 + 33;		// remainder + 33
-		pos[6] = (int)lon / 753571 + 33;
+		pos[6] = (int)lon / 753571 + 33;    // do the same for long.
 		lon = (int)lon % 753571;
 		pos[7] = (int)lon / 8281 + 33;
 		lon = (int)lon % 8281;
@@ -853,7 +853,7 @@ int beacon() {		// try to send an APRS beacon
 } // END OF 'beacon'
 
 void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and update our position and time
-	unsigned char clock_sync = 60;	// sync as soon as we have a gps fix
+	unsigned char clock_sync = 60;	// sync local clock as soon as we have a gps fix
 	string buff = "";
 	char * data = new char[1];
 
