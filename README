@@ -25,7 +25,7 @@ HF channel usage should be a last resort only, and should be used sparingly.
 
 USAGE:
 
-Type ./build.sh to build PiCrumbs. libhamlib-dev, libhamlib++-dev and wiringPi
+Type "make" to build PiCrumbs. libhamlib-dev, libhamlib++-dev and wiringPi
 are required.
 
 See picrumbs.conf.example for how to configure PiCrumbs. Your modified config
