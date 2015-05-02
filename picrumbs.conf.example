@@ -1,15 +1,15 @@
-; Station Info:
+; Station Info
 [station]
 ; mycall: callsign-ssid, callsign max 6 chars and ssid must be 0-15
 mycall = N0CALL-9
 
-; 1200-baud TNC:
+; 1200-baud TNC
 [vhf_tnc]
 port = /dev/ttyS0
 ; baud is serial line rate, not on-air rate
 baud = 9600
 
-; 300-baud TNC:
+; 300-baud TNC
 [hf_tnc]
 enable = false
 port = /dev/ttyS2
@@ -30,6 +30,12 @@ port = /dev/ttyS3
 baud = 38400
 ; model: see the HamLib website to find yours.
 model = 122
+
+; Console Serial Port
+[console]
+enable = false
+port = /dev/ttyS4
+baud = 115200
 
 ; Raspberry Pi GPIO Settings
 [gpio]
