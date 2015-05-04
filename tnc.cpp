@@ -1,4 +1,13 @@
 #include "tnc.h"
+#include <string>
+#include <cstring>
+#include <bitset>
+#include <vector>
+#include <cstdio>
+#include <unistd.h>
+#include <fcntl.h>
+#include "beacon.h"
+#include "stringfuncs.h"
 
 // GLOBAL VARS
 extern bool tnc_debug;				// rf debugging
@@ -9,6 +18,39 @@ extern unsigned int last_heard;		// time since we heard a station on vhf
 // VARS
 int vhf_tnc_iface;					// vhf tnc serial port fd
 int hf_tnc_iface;					// hf tnc serial port fd
+
+void ax25address::decode() {					// transform ax25 address into plaintext
+	string incall = callsign;
+	callsign = "";
+	for (int i=0;i<6;i++) {
+		incall[i] >>= 1;		// shift this char to the right
+		if (incall[i] != 0x20) callsign.append(1,incall[i]);
+	}
+	bitset<8> ssidbits(ssid);
+	last = ssidbits.test(0);
+	hbit = ssidbits.test(7);
+	ssidbits.reset(7);
+	ssidbits.reset(6);
+	ssidbits.reset(5);
+	ssidbits >>= 1;
+	ssid = ssidbits.to_ulong();
+} // END OF 'ax25address::decode'
+
+void ax25address::encode() {					// transform plaintext data into ax25 address
+	char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces
+	memcpy(paddedcallsign, callsign.c_str(), strlen(callsign.c_str()));		// copy the shifted callsign into our padded container
+	for (int i=0;i<6;i++) {
+		paddedcallsign[i] <<= 1;		// shift all the chars in the input callsign
+	}
+	callsign = paddedcallsign;
+	bitset<8> ssidbits(ssid);
+	ssidbits <<= 1;			// shift ssid
+	ssidbits.set(0,last);
+	ssidbits.set(5,true);
+	ssidbits.set(6,true);
+	ssidbits.set(7,hbit);
+	ssid = ssidbits.to_ulong();
+}	// END OF 'ax25address::encode'
 
 string encode_ax25_callsign(const char* callsign) {		// pad a callsign with spaces to 6 chars and shift chars to the left
 	char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces

@@ -1,4 +1,7 @@
 #include "http.h"
+#include <curl/curl.h>
+#include <sstream>
+#include "version.h"
 
 // GLOBAL VARS
 extern bool curl_debug;

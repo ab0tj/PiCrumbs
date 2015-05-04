@@ -6,11 +6,9 @@ using namespace std;
 #ifndef __HTTP_INC
 #define __HTTP_INC
 // INCLUDES
-#include <curl/curl.h>
+#include <cstddef>
 #include <vector>
 #include <string>
-#include <sstream>
-#include "version.h"
 
 // FUNCTIONS
 size_t curlnull( char *ptr, size_t size, size_t nmemb, void *userdata);	// empty function to make libcurl happy

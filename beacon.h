@@ -5,21 +5,12 @@ using namespace std;
 
 #ifndef __BEACON_DEF
 #define __BEACON_DEF
+// INCLUDES
+#include <rigclass.h>
+#include <vector>
+
 // MACROS
 #define PACKET_DEST "APRS"				// packet tocall
-
-// INCLUDES
-#include <string>
-#include <vector>
-#include <cmath>
-#include <cstdio>
-#include <sstream>
-#include <unistd.h>
-#include "hamlib.h"
-#include "pi.h"
-#include "http.h"
-#include "predict.h"
-#include "tnc.h"
 
 // STRUCTS
 struct aprspath {

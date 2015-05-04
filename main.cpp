@@ -1,4 +1,16 @@
 #include "main.h"
+#include <pthread.h>
+#include <cstdio>
+#include <signal.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <curl/curl.h>
+#include "beacon.h"
+#include "gps.h"
+#include "tnc.h"
+#include "console.h"
+#include "hamlib.h"
+#include "init.h"
 
 //GLOBAL VARS
 extern int gps_iface;					// gps serial port fd

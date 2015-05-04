@@ -1,4 +1,9 @@
 #include "gps.h"
+#include <sys/time.h>
+#include <string>
+#include <unistd.h>
+#include <cstdlib>
+#include <cstdio>
 
 // GLOBAL VARS
 extern bool verbose;

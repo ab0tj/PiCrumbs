@@ -1,4 +1,9 @@
 #include "predict.h"
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <cstdlib>
+#include "beacon.h"
 
 // GLOBAL VARS
 extern float pos_lat;						// current latitude

@@ -1,4 +1,7 @@
 #include "hamlib.h"
+#include <rigclass.h>
+#include <unistd.h>
+#include "beacon.h"
 
 // GLOBAL VARS
 extern vector<aprspath> aprs_paths;

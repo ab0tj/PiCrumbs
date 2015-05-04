@@ -1,4 +1,10 @@
 #include "pi.h"
+#include <string>
+#include <cstdio>
+#include <fstream>
+#include <cstdlib>
+#include <wiringPi.h>
+#include "beacon.h"
 
 // GLOBAL VARS
 extern vector<aprspath> aprs_paths;		// APRS paths to try, in order of preference

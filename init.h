@@ -6,17 +6,7 @@ using namespace std;
 #ifndef __INIT_INC
 #define __INIT_INC
 // INCLUDES
-#include "INIReader.h"
-#include <termios.h>
-#include <cstdio>
-#include <cstdlib>
-#include <fcntl.h>
-#include <unistd.h>
-#include <cstring>
-#include <sstream>
-#include "version.h"
-#include "hamlib.h"
-#include "stringfuncs.h"
+#include <string>
 
 // FUNCTIONS
 int get_baud(int);

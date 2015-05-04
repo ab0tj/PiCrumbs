@@ -1,4 +1,7 @@
 #include "stringfuncs.h"
+#include <cstdlib>
+#include <locale>
+#include <algorithm>
 
 void find_and_replace(string& subject, const string& search, const string& replace) {	// find and replace in a string, thanks Czarek Tomczak
 	size_t pos = 0;
@@ -10,11 +13,9 @@ void find_and_replace(string& subject, const string& search, const string& repla
 
 string get_call(string s) {
 	int index = s.find_first_of("-");
-	if (index == -1) {	// no ssid specified
-		return s;
-	} else {			// ssid was specified
-		return s.substr(0,index);	// left of the dash
-	}
+	if (index != -1) s = s.substr(0,index);	// ssid was specified
+	transform(s.begin(), s.end(), s.begin(), ::toupper);	// make sure we're returning the call in all caps
+	return s;
 }
 
 unsigned char get_ssid(string s) {

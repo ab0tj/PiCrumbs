@@ -1,4 +1,8 @@
 #include "console.h"
+#include <sstream>
+#include "version.h"
+#include <unistd.h>
+#include "stringfuncs.h"
 
 // GLOBAL VARS
 extern string mycall;							// callsign we're operating under, excluding ssid

@@ -1,4 +1,14 @@
 #include "beacon.h"
+#include <string>
+#include <cmath>
+#include <cstdio>
+#include <sstream>
+#include <unistd.h>
+#include "hamlib.h"
+#include "pi.h"
+#include "http.h"
+#include "predict.h"
+#include "tnc.h"
 
 // GLOBAL VARS
 extern float pos_lat;					// current latitude

@@ -1,4 +1,20 @@
 #include "init.h"
+#include "INIReader.h"
+#include <termios.h>
+#include <cstdio>
+#include <cstdlib>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstring>
+#include <sstream>
+#include <vector>
+#include <rigclass.h>
+#include <curl/curl.h>
+#include <wiringPi.h>
+#include "version.h"
+#include "hamlib.h"
+#include "stringfuncs.h"
+#include "beacon.h"
 
 // GLOBAL VARS
 extern bool compress_pos;						// should we compress the aprs packet?

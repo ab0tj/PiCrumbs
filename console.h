@@ -7,10 +7,6 @@ using namespace std;
 #define __CONSOLE_INC
 // INCLUDES
 #include <string>
-#include <sstream>
-#include "version.h"
-#include <unistd.h>
-#include "stringfuncs.h"
 
 // FUNCTIONS
 int console_print(string);
