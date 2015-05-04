@@ -39,19 +39,19 @@ void* console_thread(void*) {	// handle console interaction
 			read(console_iface, data, 1);
 		}
 		console_print("\n");
-		buff_in >> param;											// get command from buffer
+		buff_in >> param;	// get command from buffer
 		if ((param.compare("help") == 0) || (param.compare("?") == 0)) {
 			console_print("Available commands:\r\n\n");
 			console_print("mycall <new call>: Set or get current callsign.\r\n");
-			console_print("symbol <tc>: Set or get current symbol table, character.\r\n");
+			console_print("symbol <c or tc>: Set or get current symbol table, character.\r\n");
 		} else if (param.compare("mycall") == 0) {
 			param = "";
 			buff_in >> param;
-			if (param.compare("")) {	// returns 0 if a match
+			if (param.compare("")) {	// compare returns 0 on match
 				string temp_call = get_call(param);
 				unsigned char temp_ssid = get_ssid(param);
 				if ((temp_call.length() > 6) || ((temp_ssid < 0) || (temp_ssid > 15))) {
-					console_print("e002: Invalid callsign or ssid.\r\n");
+					console_print("Error: Invalid callsign or ssid.\r\n");
 				} else {
 					mycall = temp_call;
 					myssid = temp_ssid;
@@ -67,14 +67,23 @@ void* console_thread(void*) {	// handle console interaction
 		} else if (param.compare("symbol") == 0) {
 			param = "";
 			buff_in >> param;
-			if (param.compare("")) {
-				
+			if (param.compare("")) {	// compare returns 0 on match
+				if (param.length() == 1) {
+					symbol_char = param.c_str()[0];
+					console_print("OK\r\n");
+				} else if (param.length() == 2) {
+					symbol_table = param.c_str()[0];
+					symbol_char = param.c_str()[1];
+					console_print("OK\r\n");
+				} else {
+					console_print("Error: Symbol must be one or two characters.");
+				}
 			} else {
 				buff_out << "symbol: " << symbol_table << symbol_char;
 				console_print(buff_out.str() + "\r\n");
 			}
 		} else {
-			console_print("e001: Unrecognized command: " + param + "\r\n");
+			console_print("Error: Unrecognized command: " + param + "\r\n");
 		}
 		buff_in.str(string());			// clear input buffer
 		buff_in.clear();

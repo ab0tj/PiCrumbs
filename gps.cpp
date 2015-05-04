@@ -59,7 +59,7 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 							long int now = time(NULL);
 							if (tv.tv_sec != now) {
 								if (verbose) printf("Bumping system clock by %li seconds.\n", tv.tv_sec - now);
-								int rt = settimeofday(&tv, NULL);		// set system clock to match gps
+								settimeofday(&tv, NULL);		// set system clock to match gps
 							}
 							clock_sync = 0;
 						}

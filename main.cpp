@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <curl/curl.h>
+#include <sys/timerfd.h>
 #include "beacon.h"
 #include "gps.h"
 #include "tnc.h"
@@ -64,15 +65,22 @@ int main(int argc, char* argv[]) {
 		pthread_create(&console_t, NULL, &console_thread, NULL);
 	}
 
-	sleep (1);	// let everything 'settle'
-
+	int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);	// once per second timer
+	unsigned long long missed_secs;
+	struct itimerspec ts;
+	ts.it_interval.tv_sec = 1;
+	ts.it_interval.tv_nsec = 0;
+	ts.it_value.tv_sec = 1;
+	ts.it_value.tv_nsec = 0;
+	timerfd_settime(timer_fd, 0, &ts, 0);
+	
 	int beacon_rate = static_beacon_rate;
 	float turn_threshold = 0;
 	short int hdg_last = 0;
 	short int hdg_change = 0;
 	float speed;
 	int beacon_timer = beacon_rate;						// send startup beacon
-	while (true) {								// then send them periodically after that
+	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {								// then send them periodically after that
 		if ((beacon_timer >= beacon_rate) && beacon_ok) {		// if it's time...
 			if (sb_debug) printf("SB_DEBUG: Sending beacon.\n");
 			if (beacon() > 0) {					// send a beacon
@@ -109,8 +117,7 @@ int main(int argc, char* argv[]) {
 			
 			if (sb_debug) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.2f\n", speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
 		}
-	
-		sleep(1);
+
 		beacon_timer++;
 		last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.
 	}
