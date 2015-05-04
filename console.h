@@ -10,6 +10,7 @@ using namespace std;
 #include <sstream>
 #include "version.h"
 #include <unistd.h>
+#include "stringfuncs.h"
 
 // FUNCTIONS
 int console_print(string);

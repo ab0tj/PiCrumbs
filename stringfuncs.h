@@ -7,7 +7,10 @@ using namespace std;
 #define __STRINGFUNCS_INC
 // INCLUDES
 #include <string>
+#include <cstdlib>
 
 // FUNCTIONS
 void find_and_replace(string&, const string&, const string&);
+string get_call(string);
+unsigned char get_ssid(string);
 #endif

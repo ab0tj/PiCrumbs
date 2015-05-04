@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
 
 	int beacon_rate = static_beacon_rate;
 	float turn_threshold = 0;
-	short int last_hdg = gps_hdg;
+	short int hdg_last = 0;
 	short int hdg_change = 0;
 	float speed;
 	int beacon_timer = beacon_rate;						// send startup beacon
@@ -68,25 +68,36 @@ int main(int argc, char* argv[]) {
 				tune_radio(0);					// retune if necessary
 			}
 			beacon_timer = 0;
-			hdg_change = 0;
+			hdg_last = gps_hdg;
 		}
 
 		if ((static_beacon_rate == 0) && beacon_ok) {		// here we will implement SmartBeaconing(tm) from HamHUD.net
 			speed = gps_speed  * 1.15078;	// convert knots to mph
-			if (speed < sb_low_speed) {		// see http://www.hamhud.net/hh2/smartbeacon.html for more info
+			if (speed <= sb_low_speed) {		// see http://www.hamhud.net/hh2/smartbeacon.html for more info
 				beacon_rate = sb_low_rate;
-			} else if (speed > sb_high_speed) {
+			} else if (speed >= sb_high_speed) {
 				beacon_rate = sb_high_rate;
 			} else {
 				beacon_rate = sb_high_rate * sb_high_speed / speed;
 			}
 			turn_threshold = sb_turn_min + sb_turn_slope / speed;
-			hdg_change += gps_hdg - last_hdg;
-			last_hdg = gps_hdg;
-			if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time && speed > 3) beacon_timer = beacon_rate;	// SmartBeaconing spec says corner-pegging is always enabled regardless of speed, but testing shows GPS "wandering" can set this off needlessly while parked
+			
+			short int hdg_curr = gps_hdg;	// capture heading in case it happens to change during this calculation
+			short int hdg_diff = hdg_curr - hdg_last;
+			
+			if (abs(hdg_diff) <= 180) {
+				hdg_change = abs(hdg_diff);
+			} else if (hdg_curr > hdg_last) {		// thanks to saus on stackoverflow for this nifty solution
+				hdg_change = abs(hdg_diff) - 360;
+			} else {
+				hdg_change = 360 - abs(hdg_diff);
+			}
+			
+			if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time) beacon_timer = beacon_rate;
+			
+			if (sb_debug) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.2f\n", speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
 		}
-		if (sb_debug) printf("SB_DEBUG: Rate:%i Timer:%i HdgChg:%i Thres:%f\n", beacon_rate, beacon_timer, hdg_change, turn_threshold);
-
+	
 		sleep(1);
 		beacon_timer++;
 		last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.

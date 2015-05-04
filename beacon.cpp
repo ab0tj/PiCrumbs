@@ -89,7 +89,7 @@ int beacon() {		// try to send an APRS beacon
 		send_pos_report();
 		return 0;
 	} else {
-		for (int i=0;i<paths;i++) {		// loop thru all paths
+		for (int i=0; i<paths; i++) {		// loop thru all paths
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
 			if (time(NULL) - aprs_paths[i].lastused < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
 			if (aprs_paths[i].aprsis) {		// try immediately if this is an internet path

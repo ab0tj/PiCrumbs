@@ -16,9 +16,10 @@ using namespace std;
 #include <sstream>
 #include "version.h"
 #include "hamlib.h"
+#include "stringfuncs.h"
 
 // FUNCTIONS
 int get_baud(int);
-int open_port(string, string, int, bool);
+int open_port(string, string, int, bool, bool = false);
 void init(int, char**);
 #endif

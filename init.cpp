@@ -89,7 +89,7 @@ int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	}
 }	// END OF 'get_baud'
 
-int open_port(string name, string port, int baud, bool blocking) {			// open a serial port
+int open_port(string name, string port, int baud, bool blocking, bool echo) {			// open a serial port
 	int baud_code = get_baud(baud);
 	if (baud_code == -1) {
 		fprintf(stderr, "Invalid %s baud rate %i\n", name.c_str(), baud);
@@ -115,6 +115,7 @@ int open_port(string name, string port, int baud, bool blocking) {			// open a s
 	options.c_cflag |= CS8;									// 8 bit data
 	options.c_cflag |= (CLOCAL | CREAD);					// enable the receiver and set local mode
 	options.c_lflag &= ~ICANON;								// raw input
+	if (echo) options.c_lflag |= ECHO | ECHONL;				// echo input
 	options.c_oflag &= ~OPOST;								// raw output
 	tcsetattr(iface, TCSANOW, &options);					// set the new options for the port
 	if (blocking) {
@@ -172,14 +173,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (verbose) printf("Using config file %s\n", configfile.c_str());
  // station info
 	string call = readconfig.Get("station", "mycall", "N0CALL");	// parse the mycall config paramater
-	int index = call.find_first_of("-");
-	if (index == -1) {	// no ssid specified
-		mycall = call;
-		myssid = 0;
-	} else {			// ssid was specified
-		mycall = call.substr(0,index);	// left of the dash
-		myssid = atoi(call.substr(index+1,2).c_str());	// right of the dash
-	}
+	mycall = get_call(call);
+	myssid = get_ssid(call);
 	if (mycall.length() > 6) {
 		fprintf(stderr,"MYCALL: Station callsign must be 6 characters or less.\n");
 		exit (EXIT_FAILURE);
@@ -284,15 +279,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			do {
 				current = next + 1;
 				next = beacon_via_str.find_first_of(",", current);
-				call = beacon_via_str.substr(current, next-current);
-				index = call.find_first_of("-");
-				if (index == -1) {	// no ssid specified
-					this_call = call;
-					this_ssid = 0;
-				} else {			// ssid was specified
-					this_call = call.substr(0,index);	// left of the dash
-					this_ssid = atoi(call.substr(index+1,2).c_str());	// right of the dash
-				}
+				string call = beacon_via_str.substr(current, next-current);
+				this_call = get_call(call);
+				this_ssid = get_ssid(call);
 				if (this_call.length() > 6) {
 					fprintf(stderr,"VIA: Station callsign must be 6 characters or less.\n");
 					exit (EXIT_FAILURE);
@@ -346,7 +335,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	}
 	
 // OPEN CONSOLE INTERFACE
-	if (console_enable) console_iface = open_port("console", console_port, console_baud, true);
+	if (console_enable) console_iface = open_port("console", console_port, console_baud, true, true);
 	
 	if (verbose) printf("Init finished!\n\n");
 }	// END OF 'init'
