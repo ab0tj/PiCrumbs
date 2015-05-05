@@ -326,8 +326,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 // OPEN TNC INTERFACE(s)
 
 	// no 'if' for vhf, since this would be pointless without at least a VHF TNC	TODO: HF-only compatibility
-	vhf_tnc_iface = open_port("VHF TNC", vhf_tnc_port, vhf_tnc_baud, false);	// use nonblocking reads for soundmodem compatibility
-	if (hf_tnc_enable) hf_tnc_iface = open_port("HF TNC", hf_tnc_port, hf_tnc_baud, false);
+	vhf_tnc_iface = open_port("VHF TNC", vhf_tnc_port, vhf_tnc_baud, true);	// use nonblocking reads for soundmodem compatibility
+	if (hf_tnc_enable) hf_tnc_iface = open_port("HF TNC", hf_tnc_port, hf_tnc_baud, true);
 
 // OPEN GPS INTERFACE
 	if (gps_enable) {

@@ -142,28 +142,28 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		int viacalls = 0;
 		if (!source.last) {		// skip if no digis in address field
 			ax25address thisone;
-			while (true) {
+			do {
+				if (index > data.length() - 8) break;	// avoid running past the end of the buffer on bad frames
 				thisone.callsign = data.substr(index,6);
 				thisone.ssid = data[index+6];
 				thisone.decode();
 				via.push_back(thisone);
 				viacalls++;
 				index += 7;
-				if (thisone.last) break;
-			}
+			} while (!thisone.last);
 		}
-		payload = data.substr(index+2);		// all the way to the end of the frame, but skip control bytes
+		if (index < data.length() - 3) payload = data.substr(index+2);		// all the way to the end of the frame, but skip control bytes
 
-		printf("TNC_IN: %s", source.callsign.c_str());
+		printf("TNC_IN: %s", StripNonAscii(source.callsign).c_str());
 		if (source.ssid != 0) printf("-%i", source.ssid);
-		printf(">%s", destination.callsign.c_str());
+		printf(">%s", StripNonAscii(destination.callsign).c_str());
 		if (destination.ssid != 0) printf("-%i", destination.ssid);
 		for (int i=0;i<viacalls;i++) {
-			printf(",%s", via[i].callsign.c_str());
+			printf(",%s", StripNonAscii(via[i].callsign).c_str());
 			if (via[i].ssid != 0) printf("-%i", via[i].ssid);
 			if (via[i].hbit) printf("*");
 		}
-		printf(":%s\n", payload.c_str());
+		printf(":%s\n", StripNonAscii(payload).c_str());
 	}
 
 	if ((source.callsign.compare(mycall) == 0) && source.ssid == myssid) {
@@ -179,7 +179,7 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 	fd_set fds;
 	FD_SET(vhf_tnc_iface, &fds);
 	while (true) {
-		select(vhf_tnc_iface + 1, &fds, NULL, NULL, NULL);		// wait for data	TODO: why do nonblocking reads use so much cpu time?
+		// select(vhf_tnc_iface + 1, &fds, NULL, NULL, NULL);		// wait for data	TODO: why do nonblocking reads use so much cpu time?
 		read(vhf_tnc_iface, data, 1);		// read the data
 		if (escape) {
 			switch (data[0]) {

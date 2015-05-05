@@ -81,6 +81,8 @@ int main(int argc, char* argv[]) {
 	float speed;
 	int beacon_timer = beacon_rate;						// send startup beacon
 	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {								// then send them periodically after that
+		if (verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
+		
 		if ((beacon_timer >= beacon_rate) && beacon_ok) {		// if it's time...
 			if (sb_debug) printf("SB_DEBUG: Sending beacon.\n");
 			if (beacon() > 0) {					// send a beacon

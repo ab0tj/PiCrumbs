@@ -34,11 +34,11 @@ void* console_thread(void*) {	// handle console interaction
 		console_print(prompt);		// send prompt to the user
 		
 		read(console_iface, data, 1);							// wait for the first char to come in the serial port
-		while(data[0] != '\r') {								// keep reading until the user hits enter
+		while(data[0] != '\n') {								// keep reading until the user hits enter
 			buff_in << data[0];
 			read(console_iface, data, 1);
 		}
-		console_print("\n");
+		console_print("\r");
 		buff_in >> param;	// get command from buffer
 		if ((param.compare("help") == 0) || (param.compare("?") == 0)) {
 			console_print("Available commands:\r\n\n");
@@ -89,6 +89,7 @@ void* console_thread(void*) {	// handle console interaction
 		buff_in.clear();
 		buff_out.str(string());			// clear output buffer
 		buff_out.clear();
+		param = string();				// clear param
 	}
 	return 0;
 } // END OF 'console_thread'

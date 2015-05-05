@@ -26,3 +26,14 @@ unsigned char get_ssid(string s) {
 		return atoi(s.substr(index+1,2).c_str());	// right of the dash
 	}
 }
+
+bool isNotPrintable (char c) 
+{  
+    return !isprint(c);   
+} 
+
+string StripNonAscii(string s) 
+{ 
+    s.erase(remove_if(s.begin(),s.end(), isNotPrintable), s.end());
+	return s;
+}
