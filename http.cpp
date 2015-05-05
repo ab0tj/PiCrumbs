@@ -41,12 +41,12 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 
 	if (via.size() != 0) {
 		if (via_hbits.size() == 0) {							// via_hbits was not specified, fill it with zeros
-			for (int i=0;i<via.size();i++) {
+			for (unsigned int i=0; i<via.size(); i++) {
 				via_hbits.push_back(false);
 			}
 		}
 
-		for (int i=0;i<via.size();i++) {
+		for (unsigned int i=0; i<via.size(); i++) {
 			buff << ',' << via[i];
 			if (via_ssids[i] != 0) buff << '-' << via_ssids[i];
 			if (via_hbits[i]) buff << '*';

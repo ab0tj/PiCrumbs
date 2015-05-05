@@ -27,7 +27,7 @@ void* gps_thread(void*) {		// thread to listen to the incoming NMEA stream and u
 	string buff = "";
 	char * data = new char[1];
 
-	while (true) {
+	for (;;) {
 		read(gps_iface, data, 1);
 		if (data[0] == '\n') {			// NMEA data is terminated with a newline.
 			if (buff.length() > 6) {	// but let's not bother if this was an incomplete line

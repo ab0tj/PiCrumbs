@@ -22,7 +22,7 @@ Therefore, the tracker MUST be used with a radio that has a receiver if you want
 to use the frequency hopping features. For the same reason, it is recommended you
 don't use the VHF APRS channel too agressively as you may annoy your fellow hams.
 I recommend using the Dire Wolf soundmodem with the PASSALL option to maximize the
-ossibility of receiving your digipeated packets. HF channel usage should be a last
+possibility of receiving your digipeated packets. HF channel usage should be a last
 resort only, and should be used sparingly.
 
 USAGE:

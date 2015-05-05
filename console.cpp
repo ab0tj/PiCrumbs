@@ -30,7 +30,7 @@ void* console_thread(void*) {	// handle console interaction
 	
 	console_print("\r\n");			// make sure we start on a new line
 	
-	while(true) {
+	for (;;) {
 		console_print(prompt);		// send prompt to the user
 		
 		read(console_iface, data, 1);							// wait for the first char to come in the serial port

@@ -81,12 +81,12 @@ void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* d
 		buff.append(1, encode_ax25_ssid(source_ssid, false, true));	// no path, add source ssid and end the address field
 	} else {
 		if (via_hbits.size() == 0) {							// via_hbits was not specified, fill it with zeros
-			for (int i=0;i<via.size();i++) {
+			for (unsigned int i=0;i<via.size();i++) {
 				via_hbits.push_back(false);
 			}
 		}
 		buff.append(1, encode_ax25_ssid(source_ssid, false, false));	// path to follow, don't end the address field just yet
-		for (int i=0;i<(via.size()-1);i++) {					// loop thru all via calls except the last
+		for (unsigned int i=0;i<(via.size()-1);i++) {					// loop thru all via calls except the last
 			buff.append(encode_ax25_callsign(via[i].c_str()));			// add this via callsign
 			buff.append(1, encode_ax25_ssid(via_ssids[i], via_hbits[i], false)); // add this via ssid
 		}
@@ -114,7 +114,7 @@ void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* d
 		if (source_ssid != 0) printf("-%i", source_ssid);
 		printf(">%s", destination);
 		if (destination_ssid != 0) printf("-%i", destination_ssid);
-		for (int i=0;i<via.size();i++) {
+		for (unsigned int i=0;i<via.size();i++) {
 			printf(",%s", via[i].c_str());
 			if (via_ssids[i] != 0) printf("-%i", via_ssids[i]);
 			if (via_hbits[i]) printf("*");
@@ -138,7 +138,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		destination.callsign = data.substr(0,6);
 		destination.ssid = data[6];
 		destination.decode();
-		int index = 14;
+		unsigned int index = 14;
 		int viacalls = 0;
 		if (!source.last) {		// skip if no digis in address field
 			ax25address thisone;
@@ -178,7 +178,7 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 	bool escape = false;
 	fd_set fds;
 	FD_SET(vhf_tnc_iface, &fds);
-	while (true) {
+	for (;;) {
 		// select(vhf_tnc_iface + 1, &fds, NULL, NULL, NULL);		// wait for data	TODO: why do nonblocking reads use so much cpu time?
 		read(vhf_tnc_iface, data, 1);		// read the data
 		if (escape) {

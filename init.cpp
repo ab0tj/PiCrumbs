@@ -273,7 +273,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	modemap["PKTUSB"] = RIG_MODE_PKTUSB;
 	modemap["PKTLSB"] = RIG_MODE_PKTLSB;
 
-	while (true) {		// loop thru all paths in the config file
+	do {		// loop thru all paths in the config file
 		aprspath thispath;
 		string path_s = pathsect.str();
 		thispath.freq = readconfig.GetInteger(path_s, "freq", 144390000);
@@ -319,8 +319,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		pathidx++;
 		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
-		if (readconfig.GetInteger(pathsect.str(), "freq", 0) == 0 && !readconfig.GetBoolean(pathsect.str(), "inet", false)) break;	// quit parsing if this is the last path
-	}																																// there's probably better ways to check for this
+	} while (readconfig.GetInteger(pathsect.str(), "freq", 0) != 0 || readconfig.GetBoolean(pathsect.str(), "inet", false));	// hackish way to check for more path sections
 	if (verbose) printf("Found %i APRS paths.\n", (int)aprs_paths.size());
 
 // OPEN TNC INTERFACE(s)
