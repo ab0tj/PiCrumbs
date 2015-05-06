@@ -12,10 +12,8 @@
 
 // GLOBAL VARS
 extern float pos_lat;					// current latitude
-extern char pos_lat_dir;				// latitude direction
 extern float pos_lon;					// current longitude
-extern char pos_lon_dir;				// current longitude direction
-extern float gps_speed;					// speed from gps, in knots
+extern float gps_speed;					// speed from gps, in mph
 extern short int gps_hdg;				// heading from gps
 extern string temp_file;				// file to get 1-wire temp info from, blank to disable
 extern bool temp_f;						// temp units: false for C, true for F
@@ -34,18 +32,18 @@ bool gpio_enable;						// can we use gpio pins
 
 bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	time(&aprs_paths[path].lastused);			// update lastused time on path
+	
 	char* pos = new char[21];
 	if (compress_pos) {		// build compressed position report, yes, byte by byte.
+		float speed = gps_speed * 0.868976;				// convert mph to knots
 		pos[0] = '!';		// realtime position, no messaging
 		pos[1] = symbol_table;
-		float lat;
-		float lon;
-		float lat_min = modf(pos_lat/100, &lat);	// separate deg and min
-		float lon_min = modf(pos_lon/100, &lon);
-		lat += (lat_min/.6);	// convert min to deg and re-add it
-		lon += (lon_min/.6);
-		if (pos_lat_dir == 'S') lat = -lat;	// assign direction sign
-		if (pos_lon_dir == 'W') lon = -lon;
+		float lat = pos_lat;	// grab a copy of our location so we can do math on it
+		float lon = pos_lon;
+		// float lat_min = modf(pos_lat, &lat);	// separate deg and min
+		// float lon_min = modf(pos_lon, &lon);
+		// lat += (lat_min/.6);	// convert min to deg and re-add it
+		// lon += (lon_min/.6);
 		lat = 380926 * (90 - lat);		// formula from aprs spec
 		lon = 190463 * (180 + lon);
 		pos[2] = (int)lat / 753571 + 33;	// lat/91^3+33
@@ -62,11 +60,16 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		pos[9] = (int)lon % 91 + 33;
 		pos[10] = symbol_char;
 		pos[11] = gps_hdg / 4 + 33;
-		pos[12] = log(gps_speed+1)/log(1.08) + 33;
+		pos[12] = log(speed+1)/log(1.08) + 33;
 		pos[13] = 0x5F;			// set "T" byte
 		pos[14] = 0x00;			// (null terminated string)
 	} else {	// uncompressed packet
-		sprintf(pos, "!%02.2f%c%c%03.2f%c%c", pos_lat, pos_lat_dir, symbol_table, pos_lon, pos_lon_dir, symbol_char);
+		char pos_lat_dir = 'N';
+		char pos_lon_dir = 'E';
+		if (pos_lat < 0) pos_lat_dir = 'S';
+		if (pos_lon < 0) pos_lon_dir = 'W';
+		
+		sprintf(pos, "!%02.2f%c%c%03.2f%c%c", abs(pos_lat), pos_lat_dir, symbol_table, abs(pos_lon), pos_lon_dir, symbol_char);
 	}
 	stringstream buff;
 	buff << pos;
@@ -101,7 +104,7 @@ int beacon() {		// try to send an APRS beacon
 	} else {
 		for (int i=0; i<paths; i++) {		// loop thru all paths
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
-			if (time(NULL) - aprs_paths[i].lastused < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
+			if ((unsigned int)(time(NULL) - aprs_paths[i].lastused) < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
 			if (aprs_paths[i].aprsis) {		// try immediately if this is an internet path
 				if (send_pos_report(i)) {
 					return i;

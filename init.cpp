@@ -59,6 +59,7 @@ bool curl_debug;				// let libcurl show verbose info?
 bool fh_debug;					// did the user ask for frequency hopping info?
 bool gps_debug;					// did the user ask for gps debug info?
 bool tnc_debug;					// did the user ask for tnc debug info?
+bool gps_enable;
 
 int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	switch (baudint) {
@@ -209,10 +210,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string hf_tnc_port = readconfig.Get("hf_tnc", "port", "/dev/ttyS2");
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
  // gps config
-	bool gps_enable = readconfig.GetBoolean("gps", "enable", false);
-	string gps_port = readconfig.Get("gps", "port", "/dev/ttyS1");
-	unsigned int gps_baud = readconfig.GetInteger("gps", "baud", 4800);
-	gps_tm_sync = readconfig.GetBoolean("gps", "tm_sync", false);
+	gps_enable = readconfig.GetBoolean("gps", "enable", false);
  // console config
 	bool console_enable = readconfig.GetBoolean("console", "enable", false);
 	string console_port = readconfig.Get("console", "port", "/dev/ttyS4");
@@ -327,13 +325,6 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	// no 'if' for vhf, since this would be pointless without at least a VHF TNC	TODO: HF-only compatibility
 	vhf_tnc_iface = open_port("VHF TNC", vhf_tnc_port, vhf_tnc_baud, true);	// use nonblocking reads for soundmodem compatibility
 	if (hf_tnc_enable) hf_tnc_iface = open_port("HF TNC", hf_tnc_port, hf_tnc_baud, true);
-
-// OPEN GPS INTERFACE
-	if (gps_enable) {
-		gps_iface = open_port("GPS", gps_port, gps_baud, true);
-	} else {
-		beacon_ok = true;	// gps not enabled, use static beacons TODO: static beacon config
-	}
 
 // OPEN RIG INTERFACE
 	if (hamlib_enable) {

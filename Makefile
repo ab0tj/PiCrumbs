@@ -5,7 +5,7 @@ OBJS=beacon.o console.o gps.o hamlib.o http.o init.o main.o pi.o predict.o strin
 all: picrumbs
 
 picrumbs: $(OBJS)
-	$(C) $(OBJS) -lpthread -lhamlib -lhamlib++ -lwiringPi -lcurl -o picrumbs
+	$(C) $(OBJS) -lpthread -lhamlib -lhamlib++ -lwiringPi -lcurl -lgps -o picrumbs
 
 beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h
 	$(C) $(CFLAGS) -o beacon.o beacon.cpp
