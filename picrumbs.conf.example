@@ -5,7 +5,10 @@ mycall = N0CALL-9
 
 ; 1200-baud TNC
 [vhf_tnc]
+; port: serial port the TNC is attached to
 port = /dev/ttyS0
+; kissport: for TNCs with multiple ports (first port is 0)
+kissport = 0
 ; baud is serial line rate, not on-air rate
 baud = 9600
 
@@ -13,15 +16,12 @@ baud = 9600
 [hf_tnc]
 enable = false
 port = /dev/ttyS2
+kissport = 0
 baud = 9600
 
-; GPS Serial Port (NMEA)
+; GPS (using GPSd)
 [gps]
 enable = true
-port = /dev/ttyS1
-baud = 4800
-; tm_sync: sync system time to gps time
-tm_sync = false
 
 ; Radio Serial Port
 [radio]

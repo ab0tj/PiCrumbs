@@ -49,7 +49,9 @@ extern string aprsis_user;						// APRS-IS username/callsign
 extern string aprsis_pass;						// APRS-IS password
 extern Rig* radio;								// radio control interface reference
 extern int vhf_tnc_iface;					// vhf tnc serial port fd
+extern unsigned char vhf_tnc_kissport;		// vhf tnc kiss port
 extern int hf_tnc_iface;					// hf tnc serial port fd
+extern unsigned char hf_tnc_kissport;		// hf tnc kiss port
 extern int console_iface;					// console serial port fd
 
 // VARS
@@ -204,10 +206,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
  // tnc config
 	// vhf
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
+	vhf_tnc_kissport = readconfig.GetInteger("vhf_tnc", "kissport", 0);
 	unsigned int vhf_tnc_baud = readconfig.GetInteger("vhf_tnc", "baud", 9600);
 	// hf
 	bool hf_tnc_enable = readconfig.GetBoolean("hf_tnc", "enable", false);
 	string hf_tnc_port = readconfig.Get("hf_tnc", "port", "/dev/ttyS2");
+	hf_tnc_kissport = readconfig.GetInteger("hf_tnc", "kissport", 1);
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
  // gps config
 	gps_enable = readconfig.GetBoolean("gps", "enable", false);
@@ -323,8 +327,15 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 // OPEN TNC INTERFACE(s)
 
 	// no 'if' for vhf, since this would be pointless without at least a VHF TNC	TODO: HF-only compatibility
-	vhf_tnc_iface = open_port("VHF TNC", vhf_tnc_port, vhf_tnc_baud, true);	// use nonblocking reads for soundmodem compatibility
-	if (hf_tnc_enable) hf_tnc_iface = open_port("HF TNC", hf_tnc_port, hf_tnc_baud, true);
+	vhf_tnc_iface = open_port("VHF TNC", vhf_tnc_port, vhf_tnc_baud, true);
+	
+	if (hf_tnc_enable) {
+		if (hf_tnc_port.compare(vhf_tnc_port) == 0) {
+			hf_tnc_iface = vhf_tnc_iface;
+		} else {
+			hf_tnc_iface = open_port("HF TNC", hf_tnc_port, hf_tnc_baud, true);
+		}
+	}
 
 // OPEN RIG INTERFACE
 	if (hamlib_enable) {

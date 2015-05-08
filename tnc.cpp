@@ -17,7 +17,9 @@ extern unsigned int last_heard;		// time since we heard a station on vhf
 
 // VARS
 int vhf_tnc_iface;					// vhf tnc serial port fd
+unsigned char vhf_tnc_kissport;			// vhf tnc kiss port
 int hf_tnc_iface;					// hf tnc serial port fd
+unsigned char hf_tnc_kissport;			// hf tnc kiss port
 
 void ax25address::decode() {					// transform ax25 address into plaintext
 	string incall = callsign;
@@ -93,18 +95,31 @@ void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* d
 		buff.append(encode_ax25_callsign(via[via.size()-1].c_str()));	// finally made it to the last via call
 		buff.append(1,encode_ax25_ssid(via_ssids[via_ssids.size()-1], via_hbits[via_hbits.size()-1], true));	// end the address field
 	}
+	
 	buff.append("\x03\xF0");									// add control and pid bytes (ui frame)
 	buff.append(payload);										// add the actual data
 	// now we can escape any FENDs and FESCs that appear in the ax25 frame and add kiss encapsulation
 	find_and_replace(buff, "\xDB", "\xDB\xDD");					// replace any FESCs with FESC,TFESC
 	find_and_replace(buff, "\xC0", "\xDB\xDC");					// replace any FENDs with FESC,TFEND
-	buff.insert(0, "\xC0\x00", 2);								// add kiss header
-	buff.append(1, 0xC0);										// add kiss footer
+	
+	unsigned char control;
 	if (hf) {
-		write(hf_tnc_iface, buff.c_str(), buff.length());				// spit this out the kiss interface
+		control = hf_tnc_kissport;
+	} else {
+		control = vhf_tnc_kissport;
+	}
+	control <<= 4;												// kiss port is the 4 MSB
+	
+	buff.insert(0, 1, 0xC0);									// add kiss header
+	buff.insert(1, 1, control);
+	buff.append(1, 0xC0);										// add kiss footer
+	
+	if (hf) {
+		write(hf_tnc_iface, buff.c_str(), buff.length());		// spit this out the kiss interface
 	} else {
 		write(vhf_tnc_iface, buff.c_str(), buff.length());
 	}
+	
 	if (tnc_debug) {
 		if (hf) {
 			printf("TNC_OUT(hf): %s", source);
