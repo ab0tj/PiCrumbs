@@ -102,16 +102,14 @@ void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* d
 	find_and_replace(buff, "\xDB", "\xDB\xDD");					// replace any FESCs with FESC,TFESC
 	find_and_replace(buff, "\xC0", "\xDB\xDC");					// replace any FENDs with FESC,TFEND
 	
-	unsigned char control;
-	if (hf) {
-		control = hf_tnc_kissport;
-	} else {
-		control = vhf_tnc_kissport;
-	}
-	control <<= 4;												// kiss port is the 4 MSB
-	
 	buff.insert(0, 1, 0xC0);									// add kiss header
-	buff.insert(1, 1, control);
+	
+	if (hf) {
+		buff.insert(1, 1, hf_tnc_kissport << 4);				// add control byte
+	} else {
+		buff.insert(1, 1, vhf_tnc_kissport << 4);
+	}
+	
 	buff.append(1, 0xC0);										// add kiss footer
 	
 	if (hf) {

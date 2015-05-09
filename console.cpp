@@ -17,16 +17,21 @@ int console_print(string s) {
 	return write(console_iface, s.c_str(), s.length());
 }
 
+string build_prompt() {
+	stringstream ss;
+	ss << mycall;
+	if (myssid > 0) ss << '-' << (int)myssid;
+	ss << "> ";
+	return ss.str();
+}
+
 void* console_thread(void*) {	// handle console interaction
 	stringstream buff_in;
 	stringstream buff_out;
 	string param;
 	char * data = new char[1];
 	
-	buff_out << mycall;		// build prompt string
-	if (myssid > 0) buff_out << '-' << (int)myssid;
-	buff_out << "> ";
-	string prompt = buff_out.str();
+	string prompt = build_prompt();
 	
 	console_print("\r\n");			// make sure we start on a new line
 	
@@ -34,10 +39,23 @@ void* console_thread(void*) {	// handle console interaction
 		console_print(prompt);		// send prompt to the user
 		
 		read(console_iface, data, 1);							// wait for the first char to come in the serial port
+		
 		while(data[0] != '\n') {								// keep reading until the user hits enter
-			buff_in << data[0];
-			read(console_iface, data, 1);
+			if ((data[0] == '\b') || (data[0] == 0x7F)) {		// handle backspace
+				long pos = buff_in.tellp();
+				console_print("\b\b  \b\b");						// delete the echoed ^H or ^?
+				if (pos > 0) {
+					buff_in.seekp(pos - 1);						// remove the last char from the buffer
+					buff_in << ' ';
+					buff_in.seekp(pos - 1);
+					console_print("\b \b");						// remove the last char from the terminal
+				}
+			} else {
+				buff_in << data[0];								// this was just regular data
+			}
+			read(console_iface, data, 1);						// read another char
 		}
+		
 		console_print("\r");
 		buff_in >> param;	// get command from buffer
 		if ((param.compare("help") == 0) || (param.compare("?") == 0)) {
@@ -56,6 +74,7 @@ void* console_thread(void*) {	// handle console interaction
 					mycall = temp_call;
 					myssid = temp_ssid;
 					console_print("OK\r\n");
+					prompt = build_prompt();
 				}
 			} else {		// user is just asking
 				buff_out << "mycall: " << mycall;
