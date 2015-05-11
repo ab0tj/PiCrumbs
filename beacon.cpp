@@ -27,11 +27,12 @@ char symbol_table;						// which symbol table to use
 char symbol_char;						// which symbol to use from the table
 string beacon_comment;					// comment to send along with aprs packets
 vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
-unsigned int last_heard = 16;				// time since we heard a station on vhf
+unsigned int last_heard = 16;			// time since we heard our call on vhf
 bool gpio_enable;						// can we use gpio pins
 
 bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	time(&aprs_paths[path].lastused);			// update lastused time on path
+	aprs_paths[path].attempt++;					// update stats
 	
 	char* pos = new char[21];
 	if (compress_pos) {		// build compressed position report, yes, byte by byte.
@@ -94,7 +95,7 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	}
 }	// END OF 'send_pos_report'
 
-int beacon() {		// try to send an APRS beacon
+int path_select_beacon() {		// try to send an APRS beacon
 	if (last_heard < 10) return -1;		// hardcoded rate limiting
 	int paths = aprs_paths.size();
 	if (paths == 1) {		// no frequency hopping, just send a report
@@ -102,7 +103,7 @@ int beacon() {		// try to send an APRS beacon
 		send_pos_report();
 		return 0;
 	} else {
-		for (int i=0; i<paths; i++) {		// loop thru all paths
+		for (int i=0; i < paths; i++) {		// loop thru all paths
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
 			if ((unsigned int)(time(NULL) - aprs_paths[i].lastused) < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
 			if (aprs_paths[i].aprsis) {		// try immediately if this is an internet path
@@ -112,7 +113,7 @@ int beacon() {		// try to send an APRS beacon
 			}
 			if (gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
 			if (aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
-				if (is_visible(i)) {
+				if (is_visible(aprs_paths[i].sat, aprs_paths[i].min_ele)) {
 					if (fh_debug) printf("FH_DEBUG: %s is visible.\n", aprs_paths[i].sat.c_str()); // sat is visible, keep going.
 				} else {
 					if (fh_debug) printf("FH_DEBUG: %s not visible.\n", aprs_paths[i].sat.c_str());
@@ -137,4 +138,13 @@ int beacon() {		// try to send an APRS beacon
 		if (fh_debug) printf("FH_DEBUG: Giving up.\n");
 		return -1;	// if we made it this far we are totally outta luck. return failure.
 	}
-} // END OF 'beacon'
+} // END OF 'path_select_beacon'
+
+int beacon() {
+	int path = path_select_beacon();			// send a beacon and do some housekeeping afterward
+	
+	if (path != 0) tune_radio(0);				// retune if we're not back to the main vhf frequency
+	if (path != -1) aprs_paths[path].success++;	// update stats
+	
+	return path;
+}

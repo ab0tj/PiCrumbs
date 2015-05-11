@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <locale>
 #include <algorithm>
+#include <sstream>
 
 void find_and_replace(string& subject, const string& search, const string& replace) {	// find and replace in a string, thanks Czarek Tomczak
 	size_t pos = 0;
@@ -36,4 +37,26 @@ string StripNonAscii(string s)
 { 
     s.erase(remove_if(s.begin(),s.end(), isNotPrintable), s.end());
 	return s;
+}
+
+string secs_to_str(int in) {
+	stringstream buff;
+	unsigned int days;
+	unsigned int hours;
+	unsigned int mins;
+	unsigned int secs;
+	
+	days = in / 86400;
+	in %= 86400;
+	hours = in / 3600;
+	in %= 3600;
+	mins = in / 60;
+	secs = in % 60;
+	
+	if (days > 0) buff << days << "d ";
+	if (hours > 0) buff << hours << "h ";
+	if (mins > 0) buff << mins << "m ";
+	if (secs > 0) buff << secs << 's';
+	
+	return buff.str();
 }

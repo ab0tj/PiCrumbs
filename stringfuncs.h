@@ -13,5 +13,6 @@ void find_and_replace(string&, const string&, const string&);
 string get_call(string);
 unsigned char get_ssid(string);
 string str_toupper(string);
-string StripNonAscii(string s);
+string StripNonAscii(string);
+string secs_to_str(int);
 #endif

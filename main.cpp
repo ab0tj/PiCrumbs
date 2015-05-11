@@ -10,7 +10,6 @@
 #include "gps.h"
 #include "tnc.h"
 #include "console.h"
-#include "hamlib.h"
 #include "init.h"
 
 //GLOBAL VARS
@@ -24,7 +23,7 @@ extern int console_iface;				// console serial port fd
 extern Rig* radio;						// radio control interface reference
 extern bool verbose;					// verbose interface?
 extern bool sb_debug;					// smartbeaconing debug
-extern unsigned int last_heard;			// time since we heard a station on vhf
+extern unsigned int last_heard;			// time since we heard our call on vhf
 
 // VARS
 unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
@@ -83,10 +82,8 @@ int main(int argc, char* argv[]) {
 		
 		if ((beacon_timer >= beacon_rate) && gps_valid) {		// if it's time...
 			if (sb_debug) printf("SB_DEBUG: Sending beacon.\n");
-			if (beacon() > 0) {					// send a beacon
-				sleep(5);
-				tune_radio(0);					// retune if necessary
-			}
+			beacon();
+			
 			beacon_timer = 0;
 			hdg_last = gps_hdg;
 		}

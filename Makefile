@@ -10,7 +10,7 @@ picrumbs: $(OBJS)
 beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h
 	$(C) $(CFLAGS) -o beacon.o beacon.cpp
 
-console.o: console.cpp console.h version.h stringfuncs.h
+console.o: console.cpp console.h version.h stringfuncs.h beacon.h hamlib.h
 	$(C) $(CFLAGS) -o console.o console.cpp
 
 gps.o: gps.cpp gps.h

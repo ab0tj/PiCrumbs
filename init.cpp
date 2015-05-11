@@ -24,9 +24,7 @@ extern string beacon_comment;					// comment to send along with aprs packets
 extern vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
 extern string mycall;							// callsign we're operating under, excluding ssid
 extern unsigned char myssid;					// ssid of this station (stored as a number, not ascii)
-extern int gps_iface;						// gps serial port fd
-extern bool gps_tm_sync;					// should we sync the system time to gps time?
-extern bool beacon_ok;						// should we be sending beacons?
+extern bool gps_valid;						// should we be sending beacons?
 extern unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
 extern unsigned int sb_low_rate;				// SmartBeaconing low rate
 extern unsigned short int sb_high_speed;		// SmartBeaconing high threshold, in mph
@@ -287,6 +285,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		if (thispath.aprsis) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
 		thispath.retry = readconfig.GetBoolean(path_s, "retry", true);
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
+		thispath.attempt = 0;
+		thispath.success = 0;
 		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater
 
 		if (beacon_via_str.length() > 0) {	// parse via param, skip if no via was defined

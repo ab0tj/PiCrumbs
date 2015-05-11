@@ -5,6 +5,9 @@ using namespace std;
 
 #ifndef __PREDICT_INC
 #define __PREDICT_INC
+// INCLUDES
+#include <string>
+
 // FUNCTIONS
-bool is_visible(int);
+bool is_visible(string, int);
 #endif
