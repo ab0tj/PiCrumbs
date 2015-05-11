@@ -13,9 +13,11 @@ extern unsigned char myssid;					// ssid of this station (stored as a number, no
 extern char symbol_table;						// which symbol table to use
 extern char symbol_char;						// which symbol to use from the table
 extern vector<aprspath> aprs_paths;				// APRS paths to try, in order of preference
+extern string beacon_comment;					// comment to send along with aprs packets
 
 // VARS
 int console_iface;					// console serial port fd
+bool console_sb;					// print smartbeaconing params to console
 
 int console_print(string s) {
 	return write(console_iface, s.c_str(), s.length());
@@ -66,8 +68,10 @@ void* console_thread(void*) {	// handle console interaction
 			console_print("Available commands:\r\n\n");
 			console_print("bcnnow: Send a beacon now.\r\n");
 			console_print("mycall <new call>: Set or get current callsign.\r\n");
+			console_print("comment <new comment>: Set or get current beacon comment.\r\n");
 			console_print("symbol <c or tc>: Set or get current symbol table, character.\r\n");
-			console_print("stats: Get path usage statistics");
+			console_print("stats: Get path usage statistics.\r\n");
+			console_print("sbinfo: Show SmartBeaconing info.\r\n");
 		} else if (param.compare("bcnnow") == 0) {
 			console_print("Sending beacon...\r\n");
 			
@@ -118,6 +122,15 @@ void* console_thread(void*) {	// handle console interaction
 				buff_out << "symbol: " << symbol_table << symbol_char;
 				console_print(buff_out.str() + "\r\n");
 			}
+		} else if (param.compare("comment") == 0) {
+			param = "";
+			getline(buff_in, param);	// comment can have spaces
+			if (param.compare("")) {	// compare returns 0 on match
+				beacon_comment = trim(param);
+				console_print("OK\r\n");
+			} else {		// user is just asking
+				console_print("comment: " + beacon_comment + "\r\n");
+			}
 		} else if (param.compare("stats") == 0) {
 			console_print("Path: Attempts, successes (success%) - last attempt\r\n\n");
 			
@@ -126,7 +139,7 @@ void* console_thread(void*) {	// handle console interaction
 				
 				if (aprs_paths[i].attempt > 0) {
 					buff_out << ", " << aprs_paths[i].success;
-					buff_out << " (" << (int)((aprs_paths[i].success / aprs_paths[i].attempt) * 100) << "%) - ";
+					buff_out << " (" << (int)(((float)aprs_paths[i].success / (float)aprs_paths[i].attempt) * 100) << "%) - ";
 					buff_out << secs_to_str((int)difftime(time(NULL), aprs_paths[i].lastused));
 				}
 				
@@ -135,6 +148,12 @@ void* console_thread(void*) {	// handle console interaction
 				buff_out.str(string());			// clear output buffer
 				buff_out.clear();
 			}
+		} else if (param.compare("sbinfo") == 0) {
+			console_print("Press any key to stop.\r\n");
+			console_sb = true;
+			read(console_iface, data, 1);
+			console_sb = false;
+			console_print("\r\n");
 		} else {
 			console_print("Error: Unrecognized command: " + param + "\r\n");
 		}

@@ -15,4 +15,5 @@ unsigned char get_ssid(string);
 string str_toupper(string);
 string StripNonAscii(string);
 string secs_to_str(int);
+string trim(string);
 #endif

@@ -60,3 +60,12 @@ string secs_to_str(int in) {
 	
 	return buff.str();
 }
+
+string trim(string s)
+{
+    if(s.empty()) return s;
+
+    size_t first = s.find_first_not_of(' ');
+    size_t last  = s.find_last_not_of(' ');
+    return s.substr(first, last - first + 1);
+}

@@ -24,6 +24,7 @@ extern Rig* radio;						// radio control interface reference
 extern bool verbose;					// verbose interface?
 extern bool sb_debug;					// smartbeaconing debug
 extern unsigned int last_heard;			// time since we heard our call on vhf
+extern bool console_sb;					// print smartbeaconing params to console
 
 // VARS
 unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
@@ -113,6 +114,7 @@ int main(int argc, char* argv[]) {
 			}
 			
 			if (sb_debug) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps_speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
+			if (console_sb) dprintf(console_iface, "\rSpeed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f     ", gps_speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
 		}
 		
 		if (sb_debug && !gps_valid && gps_enable) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
