@@ -56,7 +56,7 @@ string secs_to_str(int in) {
 	if (days > 0) buff << days << "d ";
 	if (hours > 0) buff << hours << "h ";
 	if (mins > 0) buff << mins << "m ";
-	if (secs > 0) buff << secs << 's';
+	buff << secs << 's';
 	
 	return buff.str();
 }

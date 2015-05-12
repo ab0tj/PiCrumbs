@@ -9,6 +9,8 @@
 #include "http.h"
 #include "predict.h"
 #include "tnc.h"
+#include "console.h"
+#include "version.h"
 
 // GLOBAL VARS
 extern float pos_lat;					// current latitude
@@ -18,6 +20,8 @@ extern short int gps_hdg;				// heading from gps
 extern string temp_file;				// file to get 1-wire temp info from, blank to disable
 extern bool temp_f;						// temp units: false for C, true for F
 extern bool fh_debug;					// frequency hopping debug
+extern bool console_disp;				// print smartbeaconing params to console
+extern int console_iface;				// console serial port fd
 
 // LOCAL VARS
 string mycall;							// callsign we're operating under, excluding ssid
@@ -146,5 +150,6 @@ int beacon() {
 	if (path != 0) tune_radio(0);				// retune if we're not back to the main vhf frequency
 	if (path != -1) aprs_paths[path].success++;	// update stats
 	
+	if (console_disp) show_pathstats();
 	return path;
 }

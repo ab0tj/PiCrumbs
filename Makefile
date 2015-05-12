@@ -7,13 +7,13 @@ all: picrumbs
 picrumbs: $(OBJS)
 	$(C) $(OBJS) -lpthread -lhamlib -lhamlib++ -lwiringPi -lcurl -lgps -o picrumbs
 
-beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h
+beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h console.h version.h
 	$(C) $(CFLAGS) -o beacon.o beacon.cpp
 
 console.o: console.cpp console.h version.h stringfuncs.h beacon.h hamlib.h
 	$(C) $(CFLAGS) -o console.o console.cpp
 
-gps.o: gps.cpp gps.h
+gps.o: gps.cpp gps.h console.h
 	$(C) $(CFLAGS) -o gps.o gps.cpp
 
 hamlib.o: hamlib.cpp hamlib.h beacon.h
@@ -37,7 +37,7 @@ predict.o: predict.cpp predict.h beacon.h
 stringfuncs.o: stringfuncs.cpp stringfuncs.h
 	$(C) $(CFLAGS) -o stringfuncs.o stringfuncs.cpp
 
-tnc.o: tnc.cpp tnc.h beacon.h stringfuncs.h
+tnc.o: tnc.cpp tnc.h beacon.h stringfuncs.h console.h
 	$(C) $(CFLAGS) -o tnc.o tnc.cpp
 
 INIReader.o: INIReader.cpp INIReader.h ini.c ini.h

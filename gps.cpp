@@ -1,10 +1,13 @@
 #include "gps.h"
+#include "console.h"
 #include <pthread.h>
 #include <libgpsmm.h>
 
 // GLOBAL VARS
 extern bool verbose;
 extern bool gps_debug;
+extern bool console_disp;				// print smartbeaconing params to console
+extern int console_iface;				// console serial port fd
 
 // LOCAL VARS
 int gps_iface;						// gps serial port fd
@@ -31,6 +34,7 @@ void* gps_thread(void*) {
 		if (!gps_rec.waiting(5000000)) {
 			gps_valid = false;
 			if (gps_debug) printf("GPS_DEBUG: GPSd timeout.\n");
+			if (console_disp) console_print("\x1B[4;6H\x1B[KGPSd timeout.");
 			continue;
 		}
 		
@@ -48,9 +52,11 @@ void* gps_thread(void*) {
 			if (newdata->set & ALTITUDE_SET) pos_alt = newdata->fix.altitude;
 			
 			if (gps_debug) printf("GPS_DEBUG: Lat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", pos_lat, pos_lon, pos_alt, gps_speed, gps_hdg, newdata->fix.mode);
+			if (console_disp) dprintf(console_iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", pos_lat, pos_lon, pos_alt, gps_speed, gps_hdg, newdata->fix.mode);
 		} else {
 			gps_valid = false;	// no fix
 			if (gps_debug) printf("GPS_DEBUG: No fix.\n");
+			if (console_disp) console_print("\x1B[4;6H\x1B[KNo Fix.");
 		}
 		
     }

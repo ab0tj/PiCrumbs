@@ -6,14 +6,18 @@
 #include <cstdio>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sstream>
 #include "beacon.h"
 #include "stringfuncs.h"
+#include "console.h"
 
 // GLOBAL VARS
 extern bool tnc_debug;				// rf debugging
 extern string mycall;				// callsign we're operating under, excluding ssid
 extern unsigned char myssid;		// ssid of this station (stored as a number, not ascii)
 extern unsigned int last_heard;		// time since we heard a station on vhf
+extern bool console_disp;				// print smartbeaconing params to console
+extern int console_iface;				// console serial port fd
 
 // VARS
 int vhf_tnc_iface;					// vhf tnc serial port fd
@@ -143,10 +147,10 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 	source.ssid = data[13];
 	source.decode();
 
-	if (tnc_debug) {					// process the rest of the frame and print it out
+	if (tnc_debug || console_disp) {					// process the rest of the frame and print it out
 		ax25address destination;
 		vector<ax25address> via;
-		string payload;
+		stringstream tnc2;
 
 		destination.callsign = data.substr(0,6);
 		destination.ssid = data[6];
@@ -165,18 +169,22 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 				index += 7;
 			} while (!thisone.last);
 		}
-		if (index < data.length() - 3) payload = data.substr(index+2);		// all the way to the end of the frame, but skip control bytes
-
-		printf("TNC_IN: %s", StripNonAscii(source.callsign).c_str());
-		if (source.ssid != 0) printf("-%i", source.ssid);
-		printf(">%s", StripNonAscii(destination.callsign).c_str());
-		if (destination.ssid != 0) printf("-%i", destination.ssid);
-		for (int i=0;i<viacalls;i++) {
-			printf(",%s", StripNonAscii(via[i].callsign).c_str());
-			if (via[i].ssid != 0) printf("-%i", via[i].ssid);
-			if (via[i].hbit) printf("*");
+		
+		tnc2 << StripNonAscii(source.callsign);
+		if (source.ssid != 0) tnc2 << '-' << (int)source.ssid;
+		tnc2 << '>' << StripNonAscii(destination.callsign);
+		if (destination.ssid != 0) tnc2 << '-' << (int)destination.ssid;
+		
+		for (int i = 0; i < viacalls; i++) {
+			tnc2 << ',' << StripNonAscii(via[i].callsign);
+			if (via[i].ssid != 0) tnc2 << '-' << (int)via[i].ssid;
+			if (via[i].hbit) tnc2 << '*';
 		}
-		printf(":%s\n", StripNonAscii(payload).c_str());
+		
+		if (index < data.length() - 3) tnc2 << ':' << StripNonAscii(data.substr(index+2));
+		
+		if (tnc_debug) printf("%s\n", tnc2.str().c_str());
+		if (console_disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
 	if ((source.callsign.compare(mycall) == 0) && source.ssid == myssid) {

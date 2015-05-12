@@ -24,7 +24,7 @@ extern Rig* radio;						// radio control interface reference
 extern bool verbose;					// verbose interface?
 extern bool sb_debug;					// smartbeaconing debug
 extern unsigned int last_heard;			// time since we heard our call on vhf
-extern bool console_sb;					// print smartbeaconing params to console
+extern bool console_disp;				// print smartbeaconing params to console
 
 // VARS
 unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
@@ -110,14 +110,15 @@ int main(int argc, char* argv[]) {
 					hdg_change = 360 - abs(hdg_diff);
 				}
 			
-				if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time) beacon_timer = beacon_rate;
+				if (abs(hdg_change) > turn_threshold && beacon_timer > sb_turn_time) beacon_timer = beacon_rate;	// SmartBeaconing spec says CornerPegging is "ALWAYS" enabled, but GPS speed doesn't seem to be accurate enough to keep this from being triggered while stopped.
 			}
 			
 			if (sb_debug) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps_speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
-			if (console_sb) dprintf(console_iface, "\rSpeed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f     ", gps_speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
+			if (console_disp) dprintf(console_iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold, last_heard);
 		}
 		
 		if (sb_debug && !gps_valid && gps_enable) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
+		if (console_disp && !gps_valid && gps_enable) dprintf(console_iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
 		
 		beacon_timer++;
 		last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.

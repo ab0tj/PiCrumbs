@@ -17,7 +17,7 @@ extern string beacon_comment;					// comment to send along with aprs packets
 
 // VARS
 int console_iface;					// console serial port fd
-bool console_sb;					// print smartbeaconing params to console
+bool console_disp;					// print smartbeaconing params to console
 
 int console_print(string s) {
 	return write(console_iface, s.c_str(), s.length());
@@ -29,6 +29,26 @@ string build_prompt() {
 	if (myssid > 0) ss << '-' << (int)myssid;
 	ss << "> ";
 	return ss.str();
+}
+
+void show_pathstats() {
+		console_print("\x1B[9;0H");
+		
+		stringstream buff_out;
+		
+		for (unsigned int i=0; i < aprs_paths.size(); i++) {		// loop thru all paths
+				buff_out << i + 1 << ": " << aprs_paths[i].attempt;
+				
+				if (aprs_paths[i].attempt > 0) {
+					buff_out << ", " << aprs_paths[i].success;
+					buff_out << " (" << (int)(((float)aprs_paths[i].success / (float)aprs_paths[i].attempt) * 100) << "%)";
+				}
+				
+				console_print("\x1B[K" + buff_out.str() + "\r\n");
+				
+				buff_out.str(string());			// clear output buffer
+				buff_out.clear();
+		}
 }
 
 void* console_thread(void*) {	// handle console interaction
@@ -71,7 +91,7 @@ void* console_thread(void*) {	// handle console interaction
 			console_print("comment <new comment>: Set or get current beacon comment.\r\n");
 			console_print("symbol <c or tc>: Set or get current symbol table, character.\r\n");
 			console_print("stats: Get path usage statistics.\r\n");
-			console_print("sbinfo: Show SmartBeaconing info.\r\n");
+			console_print("info: Show tracker info.\r\n");
 		} else if (param.compare("bcnnow") == 0) {
 			console_print("Sending beacon...\r\n");
 			
@@ -132,27 +152,19 @@ void* console_thread(void*) {	// handle console interaction
 				console_print("comment: " + beacon_comment + "\r\n");
 			}
 		} else if (param.compare("stats") == 0) {
-			console_print("Path: Attempts, successes (success%) - last attempt\r\n\n");
-			
-			for (unsigned int i=0; i < aprs_paths.size(); i++) {		// loop thru all paths
-				buff_out << i + 1 << ": " << aprs_paths[i].attempt;
-				
-				if (aprs_paths[i].attempt > 0) {
-					buff_out << ", " << aprs_paths[i].success;
-					buff_out << " (" << (int)(((float)aprs_paths[i].success / (float)aprs_paths[i].attempt) * 100) << "%) - ";
-					buff_out << secs_to_str((int)difftime(time(NULL), aprs_paths[i].lastused));
-				}
-				
-				console_print(buff_out.str() + "\r\n");
-				
-				buff_out.str(string());			// clear output buffer
-				buff_out.clear();
-			}
-		} else if (param.compare("sbinfo") == 0) {
-			console_print("Press any key to stop.\r\n");
-			console_sb = true;
+			console_print("Path: Attempts, successes (success%)\r\n\n");
+			show_pathstats();
+		} else if (param.compare("info") == 0) {
+			console_print("\x1B[2JPiCrumbs <" + prompt + "\r\n");
+			console_print("Press any key to quit.\r\n\n");
+			console_print("GPS: \r\n");
+			console_print("SB:  \r\n");
+			console_print("TNC: \r\n\n");
+			console_print("Path: Attempts, successes (success%)");
+			show_pathstats();
+			console_disp = true;
 			read(console_iface, data, 1);
-			console_sb = false;
+			console_disp = false;
 			console_print("\r\n");
 		} else {
 			console_print("Error: Unrecognized command: " + param + "\r\n");

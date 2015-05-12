@@ -9,9 +9,6 @@ using namespace std;
 #include <rigclass.h>
 #include <vector>
 
-// MACROS
-#define PACKET_DEST "APRS"				// packet tocall
-
 // STRUCTS
 struct aprspath {
 	freq_t freq;						// frequency in hz

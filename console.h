@@ -11,4 +11,5 @@ using namespace std;
 // FUNCTIONS
 int console_print(string);
 void* console_thread(void*);
+void show_pathstats();
 #endif
