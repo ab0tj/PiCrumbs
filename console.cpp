@@ -66,7 +66,7 @@ void* console_thread(void*) {	// handle console interaction
 		
 		read(console_iface, data, 1);							// wait for the first char to come in the serial port
 		
-		while(data[0] != '\n') {								// keep reading until the user hits enter
+		while(data[0] != '\n' && data[0] != '\r') {				// keep reading until the user hits enter
 			if ((data[0] == '\b') || (data[0] == 0x7F)) {		// handle backspace
 				long pos = buff_in.tellp();
 				console_print("\b\b  \b\b");					// delete the echoed ^H or ^?
@@ -82,7 +82,7 @@ void* console_thread(void*) {	// handle console interaction
 			read(console_iface, data, 1);						// read another char
 		}
 		
-		console_print("\r");
+		console_print("\r\n");
 		buff_in >> param;	// get command from buffer
 		if ((param.compare("help") == 0) || (param.compare("?") == 0)) {
 			console_print("Available commands:\r\n\n");

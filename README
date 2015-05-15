@@ -27,8 +27,8 @@ resort only, and should be used sparingly.
 
 USAGE:
 
-Type "make" to build PiCrumbs. libhamlib-dev, libhamlib++-dev and wiringPi
-are required.
+Type "make" to build PiCrumbs. libhamlib-dev, libhamlib++-dev, libcurl, libgps
+and wiringPi are required.
 
 See picrumbs.conf.example for how to configure PiCrumbs. Your modified config
 file should be saved to /etc/picrumbs.conf
