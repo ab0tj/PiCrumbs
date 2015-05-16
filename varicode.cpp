@@ -5,7 +5,7 @@
 varicode char_to_varicode(char c) {
 	varicode vc;
 
-	switch(c) {		// construct a bitset including the varicode symbol plus two zeros
+	switch(c) {		// construct a bitset including the varicode character and two zeros
 		case 0: // NUL
 			vc.bits = bitset<12>(string("101010101100"));
 			vc.size = 12;

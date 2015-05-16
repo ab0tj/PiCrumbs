@@ -1,5 +1,3 @@
-using namespace std;
-
 #include "psk.h"
 #include "varicode.h"
 #include <cmath>
@@ -10,7 +8,7 @@ using namespace std;
 	
 class Sineclass {
 	vector<int8_t> sine;
-	unsigned int samplerate;
+	unsigned int samples;
 	unsigned int pos;
   public:
 	void init(unsigned int, unsigned int, float);
@@ -19,15 +17,15 @@ class Sineclass {
 
 void Sineclass::init(unsigned int rate, unsigned int freq, float vol) {	// precompute a sine wave scaled by the volume value to save cpu cycles later
 	const double tau = 2 * M_PI;
-	samplerate = rate;
+	samples = rate / freq;
 	
-	for (unsigned int i = 0; i < rate; i++) {
+	for (unsigned int i = 0; i < samples; i++) {
 		sine.push_back(sin(freq * tau * i / rate) * vol);
 	}
 }
 
 int8_t Sineclass::get_next() {	// return the next value in the buffer
-	if (pos >= samplerate) pos = 0;
+	if (pos >= samples) pos = 0;
 	return (sine[pos++]);
 }
 
@@ -69,8 +67,8 @@ int main(int argc, char* argv[]) {
 	while (cin.get(c)) {	// send the message
 		varicode vc = char_to_varicode(c);
 		
-		for (unsigned int a = 0; a < vc.size; a++) {	// loop through char
-			if (vc.bits[a]) {	// no phase change
+		for (unsigned int a = vc.size; a > 0; a--) {	// loop through char
+			if (vc.bits[a - 1]) {	// no phase change
 				for (unsigned int s = 0; s < samples_per_baud; s++) {	// loop for samples per baud
 					uint8_t sample = sine.get_next() * phase + center;
 					cout << sample;
