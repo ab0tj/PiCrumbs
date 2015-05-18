@@ -9,7 +9,7 @@ picrumbs: $(PC_OBJS)
 	$(C) $(PC_OBJS) -lpthread -lhamlib -lhamlib++ -lwiringPi -lcurl -lgps -o picrumbs
 
 psk: $(PSK_OBJS)
-	$(C) $(PSK_OBJS) -o psk
+	$(C) $(PSK_OBJS) -lwiringPi -o psk
 
 beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h console.h version.h
 	$(C) $(CFLAGS) -o beacon.o beacon.cpp

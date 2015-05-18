@@ -1,5 +1,6 @@
 #include "psk.h"
 #include "varicode.h"
+#include <wiringPi.h>
 #include <cmath>
 #include <iostream>
 #include <stdint.h>
@@ -12,7 +13,7 @@ int gcd(int a, int b) {
   int c;
   while (a != 0) {
      c = a;
-	 a = b%a;
+	 a = b % a;
 	 b = c;
   }
   return b;
@@ -50,6 +51,8 @@ int main(int argc, char* argv[]) {
 	const unsigned char bits = 8;
 	const unsigned int center = (1 << (bits - 1)) - 1;
 	float volume = (float)center;
+	bool gpio_ptt = false;
+	unsigned char ptt_pin = 0;
 	Sineclass sine;
 	
 	// COMMAND LINE ARGUMENT PARSING
@@ -57,7 +60,7 @@ int main(int argc, char* argv[]) {
 		int c;
 		int temp;
 		opterr = 0;
-		while ((c = getopt (argc, argv, "m:f:v:")) != -1)		// loop through all command line args
+		while ((c = getopt (argc, argv, "m:f:v:p:")) != -1)		// loop through all command line args
 			switch (c) {
 			case 'm':		// psk mode
 				if (atoi(optarg) == 1) baud = 31.25;
@@ -72,11 +75,19 @@ int main(int argc, char* argv[]) {
 				temp = atoi(optarg);
 				if (temp > 0 && temp < 101) volume = temp / 100. * (float) center;
 				break;
+			case 'p':
+				temp = atoi(optarg);
+				if (temp > 0 && temp < 255) {
+					ptt_pin = temp;
+					gpio_ptt = true;
+				}
+				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
 				fprintf(stderr, "Usage: psk [-m MODE] [-f FREQUENCY] [-v VOLUME]\n\n");
 				fprintf(stderr, "Options:\n -m\tPSK mode: 1=PSK31, 2=PSK63, 3=PSK125 (default 2)\n");
 				fprintf(stderr, " -f\tPSK audio frequency (default 2100)\n");
 				fprintf(stderr, " -v\tPSK audio volume (1-100, default 100)\n");
+				fprintf(stderr, " -p\tRaspberry Pi GPIO pin for PTT\n");
 				fprintf(stderr, " -?\tshow this help\n");
 				exit (EXIT_FAILURE);
 				break;
@@ -92,7 +103,13 @@ int main(int argc, char* argv[]) {
 		cosine[i] = (cos((float)i / samples_per_baud * tau) + 1) / 2;
 	}
 	
-	for (unsigned int i = 0; i < 32; i++) {	// preamble
+	if (gpio_ptt) {
+		wiringPiSetup();
+		pinMode(ptt_pin, OUTPUT);
+		digitalWrite(ptt_pin, 0);	// pull this line low for PTT
+	}
+	
+	for (unsigned int i = 0; i < baud + 1; i++) {	// preamble
 		for (unsigned int s = 0; s < samples_per_seg; s++) {
 			uint8_t sample = sine.get_next() * cosine[s] * phase + center;
 			cout << sample;
@@ -132,10 +149,12 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	
-	for (unsigned int s = 0; s < samples_per_baud * 32; s++) {	// postamble
+	for (unsigned int s = 0; s < samples_per_baud * (baud + 1); s++) {	// postamble
 		uint8_t sample = sine.get_next() * phase + center;
 		cout << sample;
 	}
+	
+	if (gpio_ptt) digitalWrite(ptt_pin, 1);	// turn off PTT		TODO: is this gonna screw with DireWolf's PTT?
 	
 	return 0;
 }
