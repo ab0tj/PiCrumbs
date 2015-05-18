@@ -374,7 +374,7 @@ varicode char_to_varicode(char c) {
 			vc.bits = bitset<12>(string("11111011100"));
 			vc.size = 11;
 			break;
-		case 92: // \ 
+		case 92: // \ //
 			vc.bits = bitset<12>(string("11110111100"));
 			vc.size = 11;
 			break;
