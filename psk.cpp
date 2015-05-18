@@ -7,6 +7,16 @@
 #include <cstdio>
 #include <vector>
 #include <unistd.h>
+
+int gcd(int a, int b) {
+  int c;
+  while (a != 0) {
+     c = a;
+	 a = b%a;
+	 b = c;
+  }
+  return b;
+}
 	
 class Sineclass {
 	vector<int8_t> sine;
@@ -19,7 +29,7 @@ class Sineclass {
 
 void Sineclass::init(unsigned int rate, unsigned int freq, float vol) {	// precompute a sine wave scaled by the volume value to save cpu cycles later
 	const double tau = 2 * M_PI;
-	samples = rate / freq;
+	samples = rate / gcd(rate, freq);
 	
 	for (unsigned int i = 0; i < samples; i++) {
 		sine.push_back(sin(freq * tau * i / rate) * vol);
