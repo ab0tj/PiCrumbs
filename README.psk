@@ -1,0 +1,11 @@
+PiCrumbsPsk: A command line PSK63 encoder.
+
+The PiCurumbs 'psk' program takes text input from stdin and converts it to raw
+8-bit, 8 KHz audio samples on stdout. Currently it only takes one command line
+argument: the PSK audio carrier frequency in Hz.
+
+Example:
+echo "AB0TJ Test PSK63 beacon" | ./psk 1000 | aplay
+
+It will be built along side PiCrumbs with the "make" command, or you can build
+it seperately by typing "make psk".
