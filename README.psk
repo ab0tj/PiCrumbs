@@ -11,6 +11,7 @@ Command line options:
  -m: PSK mode. 1 for PSK31, 2 for PSK63, 3 for PSK125. Default is PSK63.
  -f: PSK audio frequency, default 2100.
  -v: Audio volume, 1-100, default 100.
+ -p: Raspberry Pi GPIO pin to use for PTT (active low)
 
 It will be built along side PiCrumbs with the "make" command, or you can build
 it seperately by typing "make psk".
