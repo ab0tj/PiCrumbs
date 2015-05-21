@@ -280,9 +280,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.mode = modemap[readconfig.Get(path_s, "mode", "FM")];
 		thispath.sat = readconfig.Get(path_s, "sat", "");
 		thispath.min_ele = readconfig.GetInteger(path_s, "min_ele", 0);
-		thispath.hf = readconfig.GetBoolean(path_s, "hf", false);
-		thispath.aprsis = readconfig.GetBoolean(path_s, "inet", false);
-		if (thispath.aprsis) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
+		thispath.proto = readconfig.GetInteger(path_s, "proto", 0);
+		if (thispath.proto = 2) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
 		thispath.retry = readconfig.GetBoolean(path_s, "retry", true);
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
 		thispath.attempt = 0;

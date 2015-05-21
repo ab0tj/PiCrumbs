@@ -16,11 +16,11 @@ unsigned char gpio_hf_en;				// gpio pin for hf enable
 unsigned char gpio_vhf_en;				// gpio pin for vhf enable
 
 bool check_gpio(int path) {		// check to see if gpio says we can use this path
-	bool ok;
-	if (aprs_paths[path].hf) {
+	bool ok = true;
+	if (aprs_paths[path].proto == 1 || aprs_paths[path].proto == 3) {
 		ok = (digitalRead(gpio_hf_en) == 0);
 		if (!ok && fh_debug) printf("FH_DEBUG: HF disabled via GPIO.\n");
-	} else {
+	} else if (aprs_paths[path].proto == 0) {
 		ok = (digitalRead(gpio_vhf_en) == 0);
 		if (!ok && fh_debug) printf("FH_DEBUG: VHF disabled via GPIO.\n");
 	}

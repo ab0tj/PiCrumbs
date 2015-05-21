@@ -1,6 +1,6 @@
 C=g++
 CFLAGS=-c -Wall
-PC_OBJS=beacon.o console.o gps.o hamlib.o http.o init.o main.o pi.o predict.o stringfuncs.o tnc.o INIReader.o
+PC_OBJS=beacon.o console.o gps.o hamlib.o http.o init.o main.o pi.o predict.o psk_bcn.o stringfuncs.o tnc.o INIReader.o
 PSK_OBJS=psk.o varicode.o
 
 all: picrumbs psk
@@ -11,7 +11,7 @@ picrumbs: $(PC_OBJS)
 psk: $(PSK_OBJS)
 	$(C) $(PSK_OBJS) -lwiringPi -o psk
 
-beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h console.h version.h
+beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h console.h version.h psk_bcn.h
 	$(C) $(CFLAGS) -o beacon.o beacon.cpp
 
 console.o: console.cpp console.h version.h stringfuncs.h beacon.h hamlib.h
@@ -46,7 +46,10 @@ tnc.o: tnc.cpp tnc.h beacon.h stringfuncs.h console.h
 
 INIReader.o: INIReader.cpp INIReader.h ini.c ini.h
 	$(C) $(CFLAGS) -o INIReader.o INIReader.cpp
-
+	
+psk_bcn.o: psk_bcn.cpp psk_bcn.h
+	$(C) $(CFLAGS) -o psk_bcn.o psk_bcn.cpp
+	
 psk.o: psk.cpp psk.h varicode.h
 	$(C) $(CFLAGS) -o psk.o psk.cpp
 

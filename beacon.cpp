@@ -11,6 +11,7 @@
 #include "tnc.h"
 #include "console.h"
 #include "version.h"
+#include "psk_bcn.h"
 
 // GLOBAL VARS
 extern float pos_lat;					// current latitude
@@ -91,12 +92,29 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		}
 	}
 	buff << beacon_comment;
-	if (aprs_paths[path].aprsis) {
-		return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
-	} else {
-		send_kiss_frame(aprs_paths[path].hf, mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
-		return true;
+	
+	switch (aprs_paths[path].proto) {	// choose the appropriate way to send the beacon
+		case 0:	// 1200 baud
+		case 1:	// 300 baud
+			send_kiss_frame((aprs_paths[path].proto == 1), mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
+			return true;
+		case 2:	// aprs-is path
+			return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
+		case 3:	// psk63 path
+			send_psk_aprs(mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
+			return true;
+		case 4: // alternate 300bd/psk
+			if (aprs_paths[path].last_psk) {	// send 300bd
+				send_kiss_frame(true, mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
+				aprs_paths[path].last_psk = false;
+			} else {	// send psk
+				send_psk_aprs(mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
+				aprs_paths[path].last_psk = true;
+			}
+			return true;
 	}
+	
+	return false;
 }	// END OF 'send_pos_report'
 
 int path_select_beacon() {		// try to send an APRS beacon
@@ -110,7 +128,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 		for (int i=0; i < paths; i++) {		// loop thru all paths
 			if (fh_debug) printf("FH_DEBUG: Considering path%i.\n", i+1);
 			if ((unsigned int)(time(NULL) - aprs_paths[i].lastused) < aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
-			if (aprs_paths[i].aprsis) {		// try immediately if this is an internet path
+			if (aprs_paths[i].proto == 2) {		// try immediately if this is an internet path
 				if (send_pos_report(i)) {
 					return i;
 				} else continue;		// didn't work, try the next path
@@ -126,7 +144,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 			}
 			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
 			send_pos_report(i);					// passed all the tests. send a beacon.
-			if (aprs_paths[i].hf) return i;		// don't bother listening for a digi on hf.
+			if (aprs_paths[i].proto > 0) return i;		// don't bother listening for a digi if this isn't vhf.
 			sleep(6);
 			if (last_heard > 15) {		// probably didn't get digi'd.
 				if (!aprs_paths[i].retry) continue;		// move on to the next one if we aren't allowed to retry here

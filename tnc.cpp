@@ -78,7 +78,7 @@ char encode_ax25_ssid(char ssid, bool hbit, bool last) {	// format an ax25 ssid 
 	return ssid;
 } // END OF 'encode_ax25_ssid'
 
-void send_kiss_frame(bool hf, const char* source, int source_ssid, const char* destination, int destination_ssid, vector<string> via, vector<char>via_ssids, string payload, vector<bool>via_hbits) {		// send a KISS packet to the TNC
+void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, const char* destination, unsigned char destination_ssid, vector<string> via, vector<char>via_ssids, string payload, vector<bool>via_hbits) {		// send a KISS packet to the TNC
 	// we'll build the ax25 frame before adding the kiss encapsulation
 	string buff = encode_ax25_callsign(destination);					// add destination address
 	buff.append(1, encode_ax25_ssid(destination_ssid, false, false));	// add destination ssid

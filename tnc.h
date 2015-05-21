@@ -22,7 +22,7 @@ struct ax25address {				// struct for working with calls
 // FUNCTIONS
 string encode_ax25_callsign(const char*);
 char encode_ax25_ssid(char, bool, bool);
-void send_kiss_frame(bool, const char*, int, const char*, int, vector<string>, vector<char>, string, vector<bool> = vector<bool>());
+void send_kiss_frame(bool, const char*, unsigned char, const char*, unsigned char, vector<string>, vector<char>, string, vector<bool> = vector<bool>());
 void process_ax25_frame(string);
 void* tnc_thread(void*);
 #endif

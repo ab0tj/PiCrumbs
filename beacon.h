@@ -15,8 +15,8 @@ struct aprspath {
 	rmode_t mode;						// FM, USB, LSB, PKTFM, etc.
 	string sat;							// sat name to look up with PREDICT
 	unsigned char min_ele;				// minimum elevation of sat before trying to use it
-	bool hf;							// true for 300 baud, false for 1200 baud
-	bool aprsis;						// APRS-IS (internet) path
+	unsigned char proto;				// packet protocol: 0 = 1200 baud, 1 = 300 baud, 2 = aprs-is, 3 = psk63, 4 = alternate 300bd/psk63
+	bool last_psk;						// did we use psk last time?
 	bool retry;							// try again before moving on?
 	vector<string> pathcalls;			// path callsigns
 	vector<char> pathssids;				// path ssids

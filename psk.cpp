@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
 				break;
 			case 'f':		// psk carrier frequency
 				temp = atoi(optarg);
-				if (temp > 0 && temp < 4001) frequency = temp;
+				if (temp > 0 && temp < 4000) frequency = temp;
 				break;
 			case 'v':
 				temp = atoi(optarg);
