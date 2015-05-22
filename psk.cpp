@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iomanip>
 #include <wiringPi.h>
+#include <stdio.h>
 
 int gcd(int a, int b) {
   int c;
@@ -49,71 +50,75 @@ int8_t SampleGenerator::get_next_cos(unsigned int s) {	// return the next value 
 	return (sine[pos++] * phase * cosine[s] + center);
 }
 
-void send_psk_char(char c, SampleGenerator& sine) {
+void send_psk_char(char c, SampleGenerator& sine, FILE *aplay) {
 	varicode vc = char_to_varicode(c);
 		
 	for (unsigned int a = vc.size; a > 0; a--) {	// loop through char
 		if (vc.bits[a - 1]) {	// no phase change
 			for (unsigned int s = 0; s < sine.samples_per_baud; s++) {	// loop for samples per baud
 				uint8_t sample = sine.get_next();
-				cout << sample;
+				fputc(sample, aplay);
 			}
 		} else {	// phase change
 			for (unsigned int s = 0; s < sine.samples_per_seg; s++) {	// loop for samples per seg
 				uint8_t sample = sine.get_next_cos(s);
-				cout << sample;
+				fputc(sample, aplay);
 			}
 		
 			sine.swap_phase();	// swap phase
 		
 			for (unsigned int s = sine.samples_per_seg; s < sine.samples_per_baud; s++) {	// loop for samples per seg, starting in the middle of the baud
 				uint8_t sample = sine.get_next_cos(s);
-				cout << sample;
+				fputc(sample, aplay);
 			}
 		}
 	}
 }
 
-void send_preamble(SampleGenerator& sine, float baud) {
+void send_preamble(SampleGenerator& sine, FILE *aplay, float baud) {
 	for (unsigned int i = 0; i < baud + 1; i++) {	// preamble
 		for (unsigned int s = 0; s < sine.samples_per_seg; s++) {
 			uint8_t sample = sine.get_next_cos(s);
-			cout << sample;
+			fputc(sample, aplay);
 		}
 		
 		sine.swap_phase();
 		
 		for (unsigned int s = sine.samples_per_seg; s < sine.samples_per_baud; s++) {	// loop for samples per seg, starting in the middle of the baud
 			uint8_t sample = sine.get_next_cos(s);
-			cout << sample;
+			fputc(sample, aplay);
 		}
 	}
 }
 
-void send_postamble(SampleGenerator& sine, float baud) {
+void send_postamble(SampleGenerator& sine, FILE *aplay, float baud) {
 	for (unsigned int s = 0; s < sine.samples_per_baud * (baud + 1); s++) {	// postamble
 		uint8_t sample = sine.get_next();
-		cout << sample;
+		fputc(sample, aplay);
 	}
 }
 
 void send_psk(float baud, unsigned int freq, unsigned char vol, unsigned char ptt_pin, const char* text) {
 	SampleGenerator sine;
 	
+	FILE *aplay = popen("aplay", "w");	// open pipe to aplay
+	
 	sine.init(8000, 8, freq, vol, baud);
 
 	digitalWrite(ptt_pin, 0);	// pull this line low for PTT
 	
-	send_preamble(sine, baud);
+	send_preamble(sine, aplay, baud);
 	
 	char c;
 	while (cin.get(c)) {	// send the message
-		send_psk_char(c, sine);
+		send_psk_char(c, sine, aplay);
 	}
 	
-	send_postamble(sine, baud);
+	send_postamble(sine, aplay, baud);
 	
 	digitalWrite(ptt_pin, 1);	// turn off PTT		TODO: is this gonna screw with DireWolf's PTT?
+	
+	pclose(aplay);
 }
 
 void send_psk_aprs(unsigned int freq, unsigned char vol, unsigned char ptt_pin, const char* source, unsigned char source_ssid, const char* destination, unsigned char destination_ssid, const char* payload) {

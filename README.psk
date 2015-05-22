@@ -1,6 +1,6 @@
-PiCrumbsPsk: A command line PSK31/63/125 encoder.
+PskGen: A command line PSK31/63/125 encoder.
 
-The PiCurumbs 'psk' program takes text input from stdin and converts it to raw
+The PiCurumbs 'pskgen' program takes text input from stdin and converts it to raw
 8-bit, 8 KHz audio samples on stdout. The audio can be piped to 'aplay' or a
 similar program to output to a sound card.
 
@@ -13,5 +13,4 @@ Command line options:
  -v: Audio volume, 1-100, default 100.
  -p: Raspberry Pi GPIO pin to use for PTT (active low)
 
-It will be built along side PiCrumbs with the "make" command, or you can build
-it seperately by typing "make psk".
+You can build it separately from PiCrumbs by trying "make pskgen"
