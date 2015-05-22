@@ -109,9 +109,8 @@ void send_psk(float baud, unsigned int freq, unsigned char vol, unsigned char pt
 	
 	send_preamble(sine, aplay, baud);
 	
-	char c;
-	while (cin.get(c)) {	// send the message
-		send_psk_char(c, sine, aplay);
+	for (unsigned int i = 0; i < strlen(text); i++) {	// send the message
+		send_psk_char(text[i], sine, aplay);
 	}
 	
 	send_postamble(sine, aplay, baud);
