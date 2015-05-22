@@ -51,6 +51,7 @@ extern unsigned char vhf_tnc_kissport;		// vhf tnc kiss port
 extern int hf_tnc_iface;					// hf tnc serial port fd
 extern unsigned char hf_tnc_kissport;		// hf tnc kiss port
 extern int console_iface;					// console serial port fd
+extern unsigned char gpio_psk_ptt;						// gpio pin to use for psk ptt
 
 // VARS
 bool verbose;					// did the user ask for verbose mode?
@@ -238,6 +239,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
 	gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
 	gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
+	gpio_psk_ptt = readconfig.GetInteger("gpio", "psk_ptt_pin", 7);
 
 	if (gpio_enable) {	// set up GPIO stuff
 		wiringPiSetup();
@@ -245,6 +247,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		pullUpDnControl(gpio_hf_en, PUD_UP);
 		pinMode(gpio_vhf_en, INPUT);
 		pullUpDnControl(gpio_vhf_en, PUD_UP);
+		pinMode(gpio_psk_ptt, OUTPUT);
+		digitalWrite(gpio_psk_ptt, 1);	// ptt is active low
 	}
  // hamlib config
 	bool hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
@@ -281,7 +285,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.sat = readconfig.Get(path_s, "sat", "");
 		thispath.min_ele = readconfig.GetInteger(path_s, "min_ele", 0);
 		thispath.proto = readconfig.GetInteger(path_s, "proto", 0);
-		if (thispath.proto = 2) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
+		thispath.psk_freq = readconfig.GetInteger(path_s, "psk_freq", 2100);
+		thispath.psk_vol = readconfig.GetInteger(path_s, "psk_vol", 100);
+		if (thispath.proto == 2) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
 		thispath.retry = readconfig.GetBoolean(path_s, "retry", true);
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
 		thispath.attempt = 0;

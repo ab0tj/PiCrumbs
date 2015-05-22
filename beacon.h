@@ -24,6 +24,8 @@ struct aprspath {
 	time_t lastused;					// last time we sent a packet on this path
 	unsigned int attempt;				// number of times we have tried to use this path
 	unsigned int success;				// number of times we sucessfully sent a beacon on this path
+	unsigned int psk_freq;				// psk63 audio frequency
+	unsigned int psk_vol;				// psk63 volume;
 };
 
 // FUNCTIONS

@@ -1,6 +1,5 @@
 #include "pi.h"
 #include <string>
-#include <cstdio>
 #include <fstream>
 #include <cstdlib>
 #include <wiringPi.h>
@@ -14,15 +13,21 @@ string temp_file;						// file to get 1-wire temp info from, blank to disable
 bool temp_f;							// temp units: false for C, true for F
 unsigned char gpio_hf_en;				// gpio pin for hf enable
 unsigned char gpio_vhf_en;				// gpio pin for vhf enable
+unsigned char gpio_psk_ptt;				// gpio pin to use for psk ptt
 
 bool check_gpio(int path) {		// check to see if gpio says we can use this path
 	bool ok = true;
-	if (aprs_paths[path].proto == 1 || aprs_paths[path].proto == 3) {
-		ok = (digitalRead(gpio_hf_en) == 0);
-		if (!ok && fh_debug) printf("FH_DEBUG: HF disabled via GPIO.\n");
-	} else if (aprs_paths[path].proto == 0) {
-		ok = (digitalRead(gpio_vhf_en) == 0);
-		if (!ok && fh_debug) printf("FH_DEBUG: VHF disabled via GPIO.\n");
+	switch (aprs_paths[path].proto) {
+		case 1:
+		case 3:
+		case 4:
+			ok = (digitalRead(gpio_hf_en) == 0);
+			if (!ok && fh_debug) printf("FH_DEBUG: HF disabled via GPIO.\n");
+			break;
+		case 2:
+			ok = (digitalRead(gpio_vhf_en) == 0);
+			if (!ok && fh_debug) printf("FH_DEBUG: VHF disabled via GPIO.\n");
+			break;
 	}
 	return ok;
 } // END OF 'check_gpio'

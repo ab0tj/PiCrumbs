@@ -42,6 +42,7 @@ baud = 115200
 enable = false
 hf_en_pin = 5
 vhf_en_pin = 6
+psk_ptt_pin = 7
 
 ; Beacon Params:
 [beacon]
@@ -106,10 +107,8 @@ mode = FM
 sat = 
 ; min_ele: don't bother trying this sat if it isn't above this elevation
 min_ele = 0
-; hf: set to true to use the HF (300 baud) modem for this path
-hf = false
-; inet: use the internet (aprs-is) instead of rf
-inet = false
+; proto: 0 for 1200 baud, 1 for 300 baud, 2 for aprs-is, 3 for psk63, 4 to alternate between psk and 300 baud
+proto = 0
 ; retry: try a second time to send a packet on this path if a digi is not heard
 retry = true
 ; via: max of 8, PLEASE Google this subject before changing the default,
@@ -118,3 +117,17 @@ retry = true
 via = WIDE1-1,WIDE2-1
 ; holdoff: limit use of this path to at least this interval, in seconds.
 holdoff = 10
+
+[path2]
+; aprs-is path
+proto = 2
+
+[path3]
+; 30m hf 300bd/psk63 path
+freq = 10147600
+mode = USB
+proto = 4
+; psk_freq: psk63 audio frequency
+psk_freq = 2100
+; psk_vol: psk63 volume (in percent)
+psk_vol = 100

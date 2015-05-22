@@ -1,13 +1,11 @@
 #include "psk.h"
 #include "varicode.h"
-#include <wiringPi.h>
 #include <cmath>
 #include <iostream>
-#include <stdint.h>
-#include <cstdlib>
-#include <cstdio>
-#include <vector>
-#include <unistd.h>
+#include <sstream>
+#include <cstring>
+#include <iomanip>
+#include <wiringPi.h>
 
 int gcd(int a, int b) {
   int c;
@@ -18,143 +16,133 @@ int gcd(int a, int b) {
   }
   return b;
 }
-	
-class Sineclass {
-	vector<int8_t> sine;
-	unsigned int samples;
-	unsigned int pos;
-  public:
-	void init(unsigned int, unsigned int, float);
-	int8_t get_next();
-};
 
-void Sineclass::init(unsigned int rate, unsigned int freq, float vol) {	// precompute a sine wave scaled by the volume value to save cpu cycles later
+void SampleGenerator::init(unsigned int rate, unsigned char bits, unsigned int freq, unsigned char volume, float baud) {	// precompute a sine wave scaled by the volume value to save cpu cycles later
 	const double tau = 2 * M_PI;
+	phase = 1;
 	samples = rate / gcd(rate, freq);
+	samples_per_baud = rate / baud;
+	samples_per_seg = samples_per_baud / 2;
+	center = (1 << (bits - 1)) - 1;
+	float vol = volume / 100. * (float) center;
 	
 	for (unsigned int i = 0; i < samples; i++) {
 		sine.push_back(sin(freq * tau * i / rate) * vol);
 	}
-}
-
-int8_t Sineclass::get_next() {	// return the next value in the buffer
-	if (pos >= samples) pos = 0;
-	return (sine[pos++]);
-}
-
-int main(int argc, char* argv[]) {
-	char phase = 1;
-	const double tau = 2 * M_PI;
-	const unsigned int samplerate = 8000;
-	float baud = 62.5;
-	unsigned int frequency = 2100;
-	const unsigned char bits = 8;
-	const unsigned int center = (1 << (bits - 1)) - 1;
-	float volume = (float)center;
-	bool gpio_ptt = false;
-	unsigned char ptt_pin = 0;
-	Sineclass sine;
-	
-	// COMMAND LINE ARGUMENT PARSING
-		if (argc > 1) {		// user entered command line arguments
-		int c;
-		int temp;
-		opterr = 0;
-		while ((c = getopt (argc, argv, "m:f:v:p:")) != -1)		// loop through all command line args
-			switch (c) {
-			case 'm':		// psk mode
-				if (atoi(optarg) == 1) baud = 31.25;
-				else if (atoi(optarg) == 2) baud = 62.5;
-				else if (atoi(optarg) == 3) baud = 125;
-				break;
-			case 'f':		// psk carrier frequency
-				temp = atoi(optarg);
-				if (temp > 0 && temp < 4000) frequency = temp;
-				break;
-			case 'v':
-				temp = atoi(optarg);
-				if (temp > 0 && temp < 101) volume = temp / 100. * (float) center;
-				break;
-			case 'p':
-				temp = atoi(optarg);
-				if (temp > 0 && temp < 255) {
-					ptt_pin = temp;
-					gpio_ptt = true;
-				}
-				break;
-			case '?':		// can't understand what the user wants from us, let's set them straight
-				fprintf(stderr, "Usage: psk [-m MODE] [-f FREQUENCY] [-v VOLUME]\n\n");
-				fprintf(stderr, "Options:\n -m\tPSK mode: 1=PSK31, 2=PSK63, 3=PSK125 (default 2)\n");
-				fprintf(stderr, " -f\tPSK audio frequency (default 2100)\n");
-				fprintf(stderr, " -v\tPSK audio volume (1-100, default 100)\n");
-				fprintf(stderr, " -p\tRaspberry Pi GPIO pin for PTT\n");
-				fprintf(stderr, " -?\tshow this help\n");
-				exit (EXIT_FAILURE);
-				break;
-			}
-	}
-	
-	const unsigned int samples_per_baud = (int)(samplerate / baud);
-	const unsigned int samples_per_seg = samples_per_baud / 2;
-	float cosine[samples_per_baud];
-	sine.init(samplerate, frequency, volume);
 	
 	for (unsigned int i = 0; i < samples_per_baud; i++) {	 // calculate the cosine curve
-		cosine[i] = (cos((float)i / samples_per_baud * tau) + 1) / 2;
+		cosine.push_back((cos((float)i / samples_per_baud * tau) + 1) / 2);
 	}
-	
-	if (gpio_ptt) {
-		wiringPiSetup();
-		pinMode(ptt_pin, OUTPUT);
-		digitalWrite(ptt_pin, 0);	// pull this line low for PTT
+}
+
+void SampleGenerator::swap_phase() {
+	phase *= -1;
+}
+
+int8_t SampleGenerator::get_next() {	// return the next value in the buffer
+	if (pos >= samples) pos = 0;
+	return (sine[pos++] * phase + center);
+}
+
+int8_t SampleGenerator::get_next_cos(unsigned int s) {	// return the next value in the buffer, with sine curve
+	if (pos >= samples) pos = 0;
+	return (sine[pos++] * phase * cosine[s] + center);
+}
+
+void send_psk_char(char c, SampleGenerator& sine) {
+	varicode vc = char_to_varicode(c);
+		
+	for (unsigned int a = vc.size; a > 0; a--) {	// loop through char
+		if (vc.bits[a - 1]) {	// no phase change
+			for (unsigned int s = 0; s < sine.samples_per_baud; s++) {	// loop for samples per baud
+				uint8_t sample = sine.get_next();
+				cout << sample;
+			}
+		} else {	// phase change
+			for (unsigned int s = 0; s < sine.samples_per_seg; s++) {	// loop for samples per seg
+				uint8_t sample = sine.get_next_cos(s);
+				cout << sample;
+			}
+		
+			sine.swap_phase();	// swap phase
+		
+			for (unsigned int s = sine.samples_per_seg; s < sine.samples_per_baud; s++) {	// loop for samples per seg, starting in the middle of the baud
+				uint8_t sample = sine.get_next_cos(s);
+				cout << sample;
+			}
+		}
 	}
-	
+}
+
+void send_preamble(SampleGenerator& sine, float baud) {
 	for (unsigned int i = 0; i < baud + 1; i++) {	// preamble
-		for (unsigned int s = 0; s < samples_per_seg; s++) {
-			uint8_t sample = sine.get_next() * cosine[s] * phase + center;
+		for (unsigned int s = 0; s < sine.samples_per_seg; s++) {
+			uint8_t sample = sine.get_next_cos(s);
 			cout << sample;
 		}
 		
-		phase = -phase;
+		sine.swap_phase();
 		
-		for (unsigned int s = samples_per_seg; s < samples_per_baud; s++) {	// loop for samples per seg, starting in the middle of the baud
-			uint8_t sample = sine.get_next() * cosine[s] * phase + center;
+		for (unsigned int s = sine.samples_per_seg; s < sine.samples_per_baud; s++) {	// loop for samples per seg, starting in the middle of the baud
+			uint8_t sample = sine.get_next_cos(s);
 			cout << sample;
 		}
 	}
+}
+
+void send_postamble(SampleGenerator& sine, float baud) {
+	for (unsigned int s = 0; s < sine.samples_per_baud * (baud + 1); s++) {	// postamble
+		uint8_t sample = sine.get_next();
+		cout << sample;
+	}
+}
+
+void send_psk(float baud, unsigned int freq, unsigned char vol, unsigned char ptt_pin, const char* text) {
+	SampleGenerator sine;
+	
+	sine.init(8000, 8, freq, vol, baud);
+
+	digitalWrite(ptt_pin, 0);	// pull this line low for PTT
+	
+	send_preamble(sine, baud);
 	
 	char c;
 	while (cin.get(c)) {	// send the message
-		varicode vc = char_to_varicode(c);
-		
-		for (unsigned int a = vc.size; a > 0; a--) {	// loop through char
-			if (vc.bits[a - 1]) {	// no phase change
-				for (unsigned int s = 0; s < samples_per_baud; s++) {	// loop for samples per baud
-					uint8_t sample = sine.get_next() * phase + center;
-					cout << sample;
-				}
-			} else {	// phase change
-				for (unsigned int s = 0; s < samples_per_seg; s++) {	// loop for samples per seg
-					uint8_t sample = sine.get_next() * cosine[s] * phase + center;
-					cout << sample;
-				}
-			
-				phase = -phase;	// swap phase
-			
-				for (unsigned int s = samples_per_seg; s < samples_per_baud; s++) {	// loop for samples per seg, starting in the middle of the baud
-					uint8_t sample = sine.get_next() * cosine[s] * phase + center;
-					cout << sample;
-				}
+		send_psk_char(c, sine);
+	}
+	
+	send_postamble(sine, baud);
+	
+	digitalWrite(ptt_pin, 1);	// turn off PTT		TODO: is this gonna screw with DireWolf's PTT?
+}
+
+void send_psk_aprs(unsigned int freq, unsigned char vol, unsigned char ptt_pin, const char* source, unsigned char source_ssid, const char* destination, unsigned char destination_ssid, const char* payload) {
+	stringstream buff;
+
+	buff << source;
+	if (source_ssid > 0) buff << source_ssid;
+	buff << '>' << destination;
+	if (destination_ssid > 0) buff << destination_ssid;
+	buff << ':' << payload;
+	
+	// Compute the MODBUS RTU CRC (stole this one from http://www.ccontrolsys.com/w/How_to_Compute_the_Modbus_RTU_Message_CRC)
+	uint16_t crc = 0xFFFF;
+	const char* buf = buff.str().c_str();
+	for (unsigned int pos = 0; pos < strlen(buf); pos++) {
+		crc ^= (uint16_t)buf[pos];          // XOR byte into least sig. byte of crc
+ 
+		for (int i = 8; i != 0; i--) {    // Loop over each bit
+			if ((crc & 0x0001) != 0) {      // If the LSB is set
+				crc >>= 1;                    // Shift right and XOR 0xA001
+				crc ^= 0xA001;
+			} else {                           // Else LSB is not set
+				crc >>= 1;                    // Just shift right
 			}
 		}
 	}
+	delete buf;
 	
-	for (unsigned int s = 0; s < samples_per_baud * (baud + 1); s++) {	// postamble
-		uint8_t sample = sine.get_next() * phase + center;
-		cout << sample;
-	}
+	buff << uppercase << setfill('0') << setw(4) << hex << crc;	// append the crc value in uppercase hex
 	
-	if (gpio_ptt) digitalWrite(ptt_pin, 1);	// turn off PTT		TODO: is this gonna screw with DireWolf's PTT?
-	
-	return 0;
+	send_psk(61.25, freq, vol, ptt_pin, ("........~" + buff.str() + "~ ").c_str());
 }

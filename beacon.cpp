@@ -11,7 +11,7 @@
 #include "tnc.h"
 #include "console.h"
 #include "version.h"
-#include "psk_bcn.h"
+#include "psk.h"
 
 // GLOBAL VARS
 extern float pos_lat;					// current latitude
@@ -23,6 +23,7 @@ extern bool temp_f;						// temp units: false for C, true for F
 extern bool fh_debug;					// frequency hopping debug
 extern bool console_disp;				// print smartbeaconing params to console
 extern int console_iface;				// console serial port fd
+extern unsigned char gpio_psk_ptt;		// gpio pin to use for psk ptt
 
 // LOCAL VARS
 string mycall;							// callsign we're operating under, excluding ssid
@@ -101,15 +102,18 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		case 2:	// aprs-is path
 			return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
 		case 3:	// psk63 path
-			send_psk_aprs(mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
-			return true;
+			if (gpio_enable) {
+				send_psk_aprs(aprs_paths[path].psk_freq, aprs_paths[path].psk_vol, gpio_psk_ptt, mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
+				return true;
+			}
+			return false;	// can't send psk without gpio (yet)
 		case 4: // alternate 300bd/psk
-			if (aprs_paths[path].last_psk) {	// send 300bd
+			if (!aprs_paths[path].last_psk && gpio_enable) {	// send psk
+				send_psk_aprs(aprs_paths[path].psk_freq, aprs_paths[path].psk_vol, gpio_psk_ptt, mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
+				aprs_paths[path].last_psk = true;
+			} else {	// send 300bd
 				send_kiss_frame(true, mycall.c_str(), myssid, PACKET_DEST, 0, aprs_paths[path].pathcalls, aprs_paths[path].pathssids, buff.str());
 				aprs_paths[path].last_psk = false;
-			} else {	// send psk
-				send_psk_aprs(mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
-				aprs_paths[path].last_psk = true;
 			}
 			return true;
 	}
