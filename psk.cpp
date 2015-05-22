@@ -1,12 +1,10 @@
 #include "psk.h"
 #include "varicode.h"
 #include <cmath>
-#include <iostream>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <wiringPi.h>
-#include <stdio.h>
 
 int gcd(int a, int b) {
   int c;
@@ -101,7 +99,7 @@ void send_postamble(SampleGenerator& sine, FILE *aplay, float baud) {
 void send_psk(float baud, unsigned int freq, unsigned char vol, unsigned char ptt_pin, const char* text) {
 	SampleGenerator sine;
 	
-	FILE *aplay = popen("aplay", "w");	// open pipe to aplay
+	FILE *aplay = popen("aplay -q", "w");	// open pipe to aplay
 	
 	sine.init(8000, 8, freq, vol, baud);
 

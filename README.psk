@@ -1,8 +1,8 @@
 PskGen: A command line PSK31/63/125 encoder.
 
-The PiCurumbs 'pskgen' program takes text input from stdin and converts it to raw
-8-bit, 8 KHz audio samples on stdout. The audio can be piped to 'aplay' or a
-similar program to output to a sound card.
+The PiCurumbs 'pskgen' program takes text input from stdin and outputs PSK
+audio. Currently it requires the "aplay" utility (part of the alsa-utils
+package) installed to function.
 
 Example:
 echo "AB0TJ Test PSK63 beacon" | ./psk -f 1000 | aplay
@@ -12,5 +12,6 @@ Command line options:
  -f: PSK audio frequency, default 2100.
  -v: Audio volume, 1-100, default 100.
  -p: Raspberry Pi GPIO pin to use for PTT (active low)
+ -s: Output samples to stdout instead of aplay
 
 You can build it separately from PiCrumbs by trying "make pskgen"

@@ -9,6 +9,7 @@ using namespace std;
 // INCLUDES
 #include <vector>
 #include <stdint.h>
+#include <stdio.h>
 
 // CLASSES
 class SampleGenerator {
@@ -28,9 +29,9 @@ class SampleGenerator {
 };
 
 // FUNCTIONS
-void send_psk_char(char, SampleGenerator&);
-void send_preamble(SampleGenerator&, float);
-void send_postamble(SampleGenerator&, float);
+void send_psk_char(char, SampleGenerator&, FILE*);
+void send_preamble(SampleGenerator&, FILE*, float);
+void send_postamble(SampleGenerator&, FILE*, float);
 void send_psk_aprs(unsigned int, unsigned char, unsigned char, const char*, unsigned char, const char*, unsigned char, const char*);
 
 #endif
