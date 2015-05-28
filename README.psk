@@ -14,4 +14,4 @@ Command line options:
  -p: Raspberry Pi GPIO pin to use for PTT (active low)
  -s: Output samples to stdout instead of aplay
 
-You can build it separately from PiCrumbs by trying "make pskgen"
+You can build it separately from PiCrumbs by typing "make pskgen"

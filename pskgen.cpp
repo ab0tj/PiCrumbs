@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
 				break;
 			case 'p':
 				temp = atoi(optarg);
-				if (temp > 0 && temp < 255) {
+				if (temp >= 0 && temp < 255) {
 					ptt_pin = temp;
 					gpio_ptt = true;
 				}
