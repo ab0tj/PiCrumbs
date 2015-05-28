@@ -5,7 +5,7 @@ audio. Currently it requires the "aplay" utility (part of the alsa-utils
 package) installed to function.
 
 Example:
-echo "AB0TJ Test PSK63 beacon" | ./psk -f 1000 | aplay
+echo "AB0TJ Test PSK63 beacon" | ./psk -f 1000
 
 Command line options:
  -m: PSK mode. 1 for PSK31, 2 for PSK63, 3 for PSK125. Default is PSK63.
