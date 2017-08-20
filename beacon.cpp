@@ -167,9 +167,12 @@ int path_select_beacon() {		// try to send an APRS beacon
 } // END OF 'path_select_beacon'
 
 int beacon() {
+	freq_t radio_freq = get_radio_freq();			// save radio frequency
+	rmode_t radio_mode = get_radio_mode();			// save radio mode
 	int path = path_select_beacon();			// send a beacon and do some housekeeping afterward
 	
-	if (path != 0) tune_radio(0);				// retune if we're not back to the main vhf frequency
+	set_radio_freq(radio_freq);				// return radio to previous frequency
+	set_radio_mode(radio_mode);				// return radio to previous mode
 	if (path != -1) aprs_paths[path].success++;	// update stats
 	
 	if (console_disp) show_pathstats();

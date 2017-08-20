@@ -24,7 +24,7 @@ bool check_gpio(int path) {		// check to see if gpio says we can use this path
 			ok = (digitalRead(gpio_hf_en) == 0);
 			if (!ok && fh_debug) printf("FH_DEBUG: HF disabled via GPIO.\n");
 			break;
-		case 2:
+		case 0:
 			ok = (digitalRead(gpio_vhf_en) == 0);
 			if (!ok && fh_debug) printf("FH_DEBUG: VHF disabled via GPIO.\n");
 			break;
