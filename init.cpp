@@ -52,6 +52,8 @@ extern int hf_tnc_iface;					// hf tnc serial port fd
 extern unsigned char hf_tnc_kissport;		// hf tnc kiss port
 extern int console_iface;					// console serial port fd
 extern unsigned char gpio_psk_ptt;						// gpio pin to use for psk ptt
+extern bool radio_retune;					// return to user-set radio frequency/mode after beacon?
+extern bool hamlib_enable;					// is radio control enabled?
 
 // VARS
 bool verbose;					// did the user ask for verbose mode?
@@ -250,11 +252,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		pinMode(gpio_psk_ptt, OUTPUT);
 		digitalWrite(gpio_psk_ptt, 1);	// ptt is active low
 	}
- // hamlib config
-	bool hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
+ // radio control config
+	hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
 	string hamlib_baud = readconfig.Get("radio", "baud", "9600");		// hamlib doesn't want an int here
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);	// dummy rig as default
+	if (hamlib_enable) radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
  // aprs-is config
 	aprsis_server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
 	aprsis_port = readconfig.GetInteger("aprsis", "port", 8080);

@@ -35,6 +35,7 @@ string beacon_comment;					// comment to send along with aprs packets
 vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
 unsigned int last_heard = 16;			// time since we heard our call on vhf
 bool gpio_enable;						// can we use gpio pins
+bool radio_retune;						// should we retune the radio after beaconing?
 
 bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	time(&aprs_paths[path].lastused);			// update lastused time on path
@@ -167,12 +168,22 @@ int path_select_beacon() {		// try to send an APRS beacon
 } // END OF 'path_select_beacon'
 
 int beacon() {
-	freq_t radio_freq = get_radio_freq();			// save radio frequency
-	rmode_t radio_mode = get_radio_mode();			// save radio mode
+	freq_t radio_freq;
+	rmode_t radio_mode;
+
+	if (radio_retune) {
+		radio_freq = get_radio_freq();			// save radio frequency
+		radio_mode = get_radio_mode();			// save radio mode
+	}
+
 	int path = path_select_beacon();			// send a beacon and do some housekeeping afterward
 	
-	set_radio_freq(radio_freq);				// return radio to previous frequency
-	set_radio_mode(radio_mode);				// return radio to previous mode
+	if (radio_retune) {
+		set_radio_freq(radio_freq);				// return radio to previous frequency
+		set_radio_mode(radio_mode);				// return radio to previous mode
+	}
+	else if (path != 0) tune_radio(0);
+
 	if (path != -1) aprs_paths[path].success++;	// update stats
 	
 	if (console_disp) show_pathstats();

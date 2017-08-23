@@ -30,6 +30,8 @@ port = /dev/ttyS3
 baud = 38400
 ; model: see the HamLib website to find yours.
 model = 122
+; retune: set to true to return to the user-set frequency and mode after beaconing
+retune = false
 
 ; Console Serial Port
 [console]

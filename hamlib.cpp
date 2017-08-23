@@ -7,8 +7,11 @@ extern vector<aprspath> aprs_paths;
 
 // LOCAL VARS
 Rig* radio;								// radio control interface reference
+bool hamlib_enable;						// is radio control enabled?
 
 bool tune_radio(int path) {		// use hamlib to tune the radio to the freq and mode of this path
+	if (!hamlib_enable) return true;	// don't try to do tuning stuff if we can't
+
 	try {
 		if (radio->getFreq() == aprs_paths[path].freq) return true; // skip if already set
 		radio->setFreq(Hz(aprs_paths[path].freq));
