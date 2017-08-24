@@ -122,6 +122,17 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	return false;
 }	// END OF 'send_pos_report'
 
+bool wait_for_digi() {
+	int timeout = 6;
+
+	while (last_heard > 15) {
+		sleep(1);
+		if (--timeout <= 0) return false;
+	}
+
+	return true;	// last heard is less than 15, must have been digi'd.
+}	// END OF 'wait_for_digi'
+
 int path_select_beacon() {		// try to send an APRS beacon
 	if (last_heard < 10) return -1;		// hardcoded rate limiting
 	int paths = aprs_paths.size();
@@ -149,15 +160,14 @@ int path_select_beacon() {		// try to send an APRS beacon
 			}
 			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
 			send_pos_report(i);					// passed all the tests. send a beacon.
-			if (aprs_paths[i].proto > 0) return i;		// don't bother listening for a digi if this isn't vhf.
-			sleep(6);
-			if (last_heard > 15) {		// probably didn't get digi'd.
+			if (aprs_paths[i].proto != 0) return i;		// don't bother listening for a digi if this isn't vhf.
+
+			if (!wait_for_digi()) {		// probably didn't get digi'd.
 				if (!aprs_paths[i].retry) continue;		// move on to the next one if we aren't allowed to retry here
 				if (fh_debug) printf("FH_DEBUG: Retrying.\n");
 				if (!tune_radio(i)) continue;	// just in case user is messing with radio when we want to retry
 				send_pos_report(i);				// try again
-				sleep(6);
-				if (last_heard < 15) return i;	// must have worked this time
+				if (wait_for_digi()) return i;	// must have worked this time
 			} else {
 				return i;							// we did get digi'd
 			}

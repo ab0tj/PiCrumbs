@@ -24,6 +24,7 @@ int vhf_tnc_iface;					// vhf tnc serial port fd
 unsigned char vhf_tnc_kissport;			// vhf tnc kiss port
 int hf_tnc_iface;					// hf tnc serial port fd
 unsigned char hf_tnc_kissport;			// hf tnc kiss port
+string last_tx_packet;				// the last kiss frame that we sent
 
 void ax25address::decode() {					// transform ax25 address into plaintext
 	string incall = callsign;
@@ -102,6 +103,9 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 	
 	buff.append("\x03\xF0");									// add control and pid bytes (ui frame)
 	buff.append(payload);										// add the actual data
+
+	last_tx_packet = buff;										// save for later comparison
+
 	// now we can escape any FENDs and FESCs that appear in the ax25 frame and add kiss encapsulation
 	find_and_replace(buff, "\xDB", "\xDB\xDD");					// replace any FESCs with FESC,TFESC
 	find_and_replace(buff, "\xC0", "\xDB\xDC");					// replace any FENDs with FESC,TFEND
@@ -115,7 +119,7 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 	}
 	
 	buff.append(1, 0xC0);										// add kiss footer
-	
+
 	if (hf) {
 		write(hf_tnc_iface, buff.c_str(), buff.length());		// spit this out the kiss interface
 	} else {
@@ -141,6 +145,11 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 }	// END OF 'send_kiss_frame'
 
 void process_ax25_frame(string data) {		// listen for our own packets and update last heard var
+	if (data.compare(last_tx_packet) == 0) {
+		if (tnc_debug) printf("TNC_DEBUG: Heard myself!\n");
+		return;
+	}
+
 	ax25address source;
 
 	source.callsign = data.substr(7,6);
