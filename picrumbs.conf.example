@@ -110,6 +110,7 @@ sat =
 ; min_ele: don't bother trying this sat if it isn't above this elevation
 min_ele = 0
 ; proto: 0 for 1200 baud, 1 for 300 baud, 2 for aprs-is, 3 for psk63, 4 to alternate between psk and 300 baud
+; this is the only path setting that is required
 proto = 0
 ; retry: try a second time to send a packet on this path if a digi is not heard
 retry = true

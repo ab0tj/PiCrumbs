@@ -329,7 +329,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		pathidx++;
 		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
-	} while (readconfig.GetInteger(pathsect.str(), "freq", 0) != 0 || readconfig.GetBoolean(pathsect.str(), "inet", false));	// hackish way to check for more path sections
+	} while (readconfig.GetInteger(pathsect.str(), "proto", -1) != -1);	// all paths must at least have a proto setting
 	if (verbose) printf("Found %i APRS paths.\n", (int)aprs_paths.size());
 
 // OPEN TNC INTERFACE(s)

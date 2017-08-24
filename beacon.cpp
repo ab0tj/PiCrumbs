@@ -160,6 +160,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 			}
 			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
 			send_pos_report(i);					// passed all the tests. send a beacon.
+			if (aprs_paths[i].proto == 1) sleep(10);	// give hf packet time to transmit
 			if (aprs_paths[i].proto != 0) return i;		// don't bother listening for a digi if this isn't vhf.
 
 			if (!wait_for_digi()) {		// probably didn't get digi'd.

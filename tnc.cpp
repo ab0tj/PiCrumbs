@@ -192,7 +192,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		
 		if (index < data.length() - 3) tnc2 << ':' << StripNonAscii(data.substr(index+2));
 		
-		if (tnc_debug) printf("%s\n", tnc2.str().c_str());
+		if (tnc_debug) printf("TNC_IN: %s\n", tnc2.str().c_str());
 		if (console_disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
