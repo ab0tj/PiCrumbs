@@ -172,8 +172,11 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				else if (strcmp(optarg, "is") == 0) curl_debug = true;
 				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
-				fprintf(stderr, "Usage: picrumbs [-v] [-c CONFIGFILE]\n\n");
-				fprintf(stderr, "Options:\n -v\tbe verbose\n -c\tspecify config file\n -?\tshow this help\n");
+				fprintf(stderr, "Usage: picrumbs [-v] [-c CONFIGFILE] [-z DEBUGOPT]\n\n");
+				fprintf(stderr, "Options:\n -v\tbe verbose\n -c\tspecify config file\n -z\tDebugging messages (see below)\n -?\tshow this help\n");
+				fprintf(stderr, "\nDebugging options (-z can be specified multiple times):\n tnc\tShow info about data sent and recieved by the TNC\n");
+				fprintf(stderr, " sb\tShow SmartBeaconing information\n fh\tShow path debugging information\n");
+				fprintf(stderr, " hl\tShow rig control (hamlib) debugging information\n is\tShow APRS-IS (curl) debugging information\n");
 				exit (EXIT_FAILURE);
 				break;
 			}
