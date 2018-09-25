@@ -39,6 +39,7 @@ extern unsigned char gpio_hf_en;				// gpio pin for hf enable
 extern unsigned char gpio_vhf_en;				// gpio pin for vhf enable
 extern string predict_path;					// path to PREDICT program
 extern bool gpio_enable;						// can we use gpio pins
+extern bool aprsis_enable;					// APRS-IS enable
 extern string aprsis_server;					// APRS-IS server name/IP
 extern unsigned short int aprsis_port;			// APRS-IS port number
 extern string aprsis_proxy;					// HTTP proxy to use for APRS-IS
@@ -262,6 +263,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);	// dummy rig as default
 	if (hamlib_enable) radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
  // aprs-is config
+	aprsis_enable = readconfig.GetBoolean("aprsis", "enable", "false");
 	aprsis_server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
 	aprsis_port = readconfig.GetInteger("aprsis", "port", 8080);
 	aprsis_proxy = readconfig.Get("aprsis", "proxy", "");
