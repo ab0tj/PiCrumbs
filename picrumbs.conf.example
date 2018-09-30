@@ -77,6 +77,7 @@ path =
 
 ; APRS-IS settings
 [aprsis]
+enable = false
 ; server: name or ip address of an aprs-is server that supports http
 server = rotate.aprs2.net
 ; port: http port of this server, usually 8080.

@@ -76,8 +76,9 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		char pos_lon_dir = 'E';
 		if (pos_lat < 0) pos_lat_dir = 'S';
 		if (pos_lon < 0) pos_lon_dir = 'W';
-		
-		sprintf(pos, "!%02.2f%c%c%03.2f%c%c", abs(pos_lat), pos_lat_dir, symbol_table, abs(pos_lon), pos_lon_dir, symbol_char);
+
+		sprintf(pos, "!%05.2f%c%c%06.2f%c%c", abs(int(pos_lat)*100 + (pos_lat-int(pos_lat))*60) , pos_lat_dir, symbol_table
+						    , abs(int(pos_lon)*100 + (pos_lon-int(pos_lon))*60) , pos_lon_dir, symbol_char);
 	}
 	stringstream buff;
 	buff << pos;

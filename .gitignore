@@ -10,11 +10,14 @@ tmp/
 *.tmp
 *.bak
 *.swp
+*.o
 *~.nib
 local.properties
 .classpath
 .settings/
 .loadpath
+
+/picrumbs
 
 # External tool builders
 .externalToolBuilders/
