@@ -9,6 +9,7 @@ extern bool tnc_debug;
 extern bool fh_debug;
 
 // LOCAL VARS
+bool aprsis_enable;					// APRS-IS Enable/Disable
 string aprsis_server;					// APRS-IS server name/IP
 unsigned short int aprsis_port;			// APRS-IS port number
 string aprsis_proxy;					// HTTP proxy to use for APRS-IS
@@ -27,6 +28,14 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	stringstream aprsis_url;
 	stringstream buff;
 	string aprsis_postdata;		// we'll build this in a string since stringstream seems to drop newlines
+
+
+	if (aprsis_enable == 0) {
+	    if (tnc_debug || curl_debug) {
+		printf("APRS-IS disabled.  Not sending.\n");
+	    }
+	    return 1;
+	}
 
 	// first, build the TNC2 packet
 	buff << "user " << aprsis_user << " pass " << aprsis_pass << " vers PiCrumbs " << VERSION;

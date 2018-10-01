@@ -5,6 +5,9 @@ PSK_OBJS=psk.o pskgen.o varicode.o
 
 all: picrumbs
 
+install: all
+	/usr/bin/install -D --mode=755 picrumbs /usr/local/bin/picrumbs
+
 picrumbs: $(PC_OBJS)
 	$(C) $(PC_OBJS) -lpthread -lhamlib -lhamlib++ -lwiringPi -lcurl -lgps -o picrumbs
 
