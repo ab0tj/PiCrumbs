@@ -9,6 +9,7 @@ extern float pos_lat;						// current latitude
 extern float pos_lon;						// current longitude
 extern unsigned short int pos_alt;			// current altitude in meters
 extern string mycall;						// callsign we're operating under, excluding ssid
+extern bool fh_debug;
 
 // VARS
 string predict_path;					// path to PREDICT program
@@ -29,18 +30,20 @@ bool is_visible(string sat, int min_ele) {		// use PREDICT to figure out if this
 	predict_cmd << predict_path;
 	predict_cmd << " -f " << '"' << sat << "\" -q /tmp/picrumbs.qth";	// build the command line
 	try {
-		FILE *predict = popen(predict_cmd.str().c_str(), "r");
+		FILE* predict = popen(predict_cmd.str().c_str(), "r");
 		if (!predict) {
 			fprintf(stderr, "Could not execute %s\n", predict_cmd.str().c_str());
 			return false;
 		}
 
 		char buff[256];
-		fgets(buff, sizeof(buff), predict);
+		fgets(buff, 256, predict);
 		pclose(predict);
 		string buff_s = buff;
 
-		return (atoi(buff_s.substr(32, 4).c_str()) > min_ele);
+		int ele = atoi(buff_s.substr(32, 4).c_str());
+		if (fh_debug) printf("FH_DEBUG: %s elevation is %d.\n", sat.c_str(), ele);
+		return (ele > min_ele);
 	} catch (exception& e) {
 		fprintf(stderr, "Error while executing PREDICT (%s): %s\n", predict_cmd.str().c_str(), e.what());
 		return false;

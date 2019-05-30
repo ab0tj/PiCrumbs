@@ -184,7 +184,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 				return i;							// we did get digi'd
 			}
 		}	// if we made it this far, we didn't get a packet thru, loop to next path
-		if (fh_debug) printf("FH_DEBUG: Giving up.\n");
+
 		return -1;	// if we made it this far we are totally outta luck. return failure.
 	}
 } // END OF 'path_select_beacon'
@@ -207,6 +207,19 @@ int beacon() {
 	else if (path != 0) tune_radio(0);
 
 	if (path != -1) aprs_paths[path].success++;	// update stats
+
+	if (fh_debug)
+	{
+		if (path == -1)
+		{
+			printf("FH_DEBUG: Path select returned failure.\n");
+		}
+		else
+		{
+			printf("FH_DEBUG: Success via path %d.\n", path + 1);
+		}
+		
+	}
 	
 	if (console_disp) show_pathstats();
 	return path;

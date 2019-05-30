@@ -62,6 +62,7 @@ bool sb_debug;					// did the user ask for smartbeaconing info?
 bool curl_debug;				// let libcurl show verbose info?
 bool fh_debug;					// did the user ask for frequency hopping info?
 bool gps_debug;					// did the user ask for gps debug info?
+bool hl_debug;					// did the user ask for hamlib debug info?
 bool tnc_debug;					// did the user ask for tnc debug info?
 bool gps_enable;
 
@@ -169,7 +170,11 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				else if (strcmp(optarg, "tnc") == 0) tnc_debug = true;
 				else if (strcmp(optarg, "sb") == 0) sb_debug = true;
 				else if (strcmp(optarg, "fh") == 0) fh_debug = true;
-				else if (strcmp(optarg, "hl") == 0) HAMLIB_API::rig_set_debug(RIG_DEBUG_TRACE);
+				else if (strcmp(optarg, "hl") == 0)
+				{
+					HAMLIB_API::rig_set_debug(RIG_DEBUG_TRACE);
+					hl_debug = true;
+				}
 				else if (strcmp(optarg, "is") == 0) curl_debug = true;
 				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
