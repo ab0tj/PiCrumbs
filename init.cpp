@@ -17,28 +17,13 @@
 #include "beacon.h"
 
 // GLOBAL VARS
-extern bool compress_pos;						// should we compress the aprs packet?
-extern char symbol_table;						// which symbol table to use
-extern char symbol_char;						// which symbol to use from the table
-extern string beacon_comment;					// comment to send along with aprs packets
-extern vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
-extern string mycall;							// callsign we're operating under, excluding ssid
-extern unsigned char myssid;					// ssid of this station (stored as a number, not ascii)
+extern BeaconStruct beacon;						// Stuff related to beaconing
 extern bool gps_valid;						// should we be sending beacons?
-extern unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
-extern unsigned int sb_low_rate;				// SmartBeaconing low rate
-extern unsigned short int sb_high_speed;		// SmartBeaconing high threshold, in mph
-extern unsigned int sb_high_rate;				// SmartBeaconing high rate
-extern unsigned short int sb_turn_min;			// SmartBeaconing turn minimum (deg)
-extern unsigned short int sb_turn_time;		// SmartBeaconing turn time (minimum)
-extern unsigned short int sb_turn_slope;		// SmartBeaconing turn slope
-extern unsigned int static_beacon_rate;		// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 extern string temp_file;						// file to get 1-wire temp info from, blank to disable
 extern bool temp_f;							// temp units: false for C, true for F
 extern unsigned char gpio_hf_en;				// gpio pin for hf enable
 extern unsigned char gpio_vhf_en;				// gpio pin for vhf enable
 extern string predict_path;					// path to PREDICT program
-extern bool gpio_enable;						// can we use gpio pins
 extern bool aprsis_enable;					// APRS-IS enable
 extern string aprsis_server;					// APRS-IS server name/IP
 extern unsigned short int aprsis_port;			// APRS-IS port number
@@ -53,7 +38,6 @@ extern int hf_tnc_iface;					// hf tnc serial port fd
 extern unsigned char hf_tnc_kissport;		// hf tnc kiss port
 extern int console_iface;					// console serial port fd
 extern unsigned char gpio_psk_ptt;						// gpio pin to use for psk ptt
-extern bool radio_retune;					// return to user-set radio frequency/mode after beacon?
 extern bool hamlib_enable;					// is radio control enabled?
 
 // VARS
@@ -202,17 +186,17 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (verbose) printf("Using config file %s\n", configfile.c_str());
  // station info
 	string call = readconfig.Get("station", "mycall", "N0CALL");	// parse the mycall config paramater
-	mycall = get_call(call);
-	myssid = get_ssid(call);
-	if (mycall.length() > 6) {
+	beacon.mycall = get_call(call);
+	beacon.myssid = get_ssid(call);
+	if (beacon.mycall.length() > 6) {
 		fprintf(stderr,"MYCALL: Station callsign must be 6 characters or less.\n");
 		exit (EXIT_FAILURE);
 	}
-	if (myssid < 0 or myssid > 15) {
+	if (beacon.myssid < 0 or beacon.myssid > 15) {
 		fprintf(stderr,"MYCALL: Station SSID must be between 0 and 15.\n"); // TODO: We don't care about this if it doesn't need to go over-the-air.
 		exit (EXIT_FAILURE);
 	}
-	if (verbose) printf("Operating as %s-%i\n", mycall.c_str(), myssid);
+	if (verbose) printf("Operating as %s-%i\n", beacon.mycall.c_str(), beacon.myssid);
  // tnc config
 	// vhf
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
@@ -230,29 +214,29 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string console_port = readconfig.Get("console", "port", "/dev/ttyS4");
 	unsigned int console_baud = readconfig.GetInteger("console", "baud", 115200);
  // beacon config
-	beacon_comment = readconfig.Get("beacon", "comment", "");
-	compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
-	symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
-	symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
+	beacon.comment = readconfig.Get("beacon", "comment", "");
+	beacon.compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
+	beacon.symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
+	beacon.symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
 	temp_file = readconfig.Get("beacon", "temp_file", "");
 	temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
-	static_beacon_rate = readconfig.GetInteger("beacon", "static_rate", 900);
-	sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
-	sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
-	sb_high_speed = readconfig.GetInteger("beacon", "sb_high_speed", 60);
-	sb_high_rate = readconfig.GetInteger("beacon", "sb_high_rate", 180);
-	sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
-	sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
-	sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
+	beacon.static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
+	beacon.sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
+	beacon.sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
+	beacon.sb_high_speed = readconfig.GetInteger("beacon", "sb_high_speed", 60);
+	beacon.sb_high_rate = readconfig.GetInteger("beacon", "sb_high_rate", 180);
+	beacon.sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
+	beacon.sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
+	beacon.sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
  // sat tracking config
 	predict_path = readconfig.Get("predict", "path", "");
  // gpio config
-	gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
+	beacon.gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
 	gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
 	gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
 	gpio_psk_ptt = readconfig.GetInteger("gpio", "psk_ptt_pin", 7);
 
-	if (gpio_enable) {	// set up GPIO stuff
+	if (beacon.gpio_enable) {	// set up GPIO stuff
 		wiringPiSetup();
 		pinMode(gpio_hf_en, INPUT);				// set pin to input
 		pullUpDnControl(gpio_hf_en, PUD_UP);
@@ -266,14 +250,14 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
 	string hamlib_baud = readconfig.Get("radio", "baud", "9600");		// hamlib doesn't want an int here
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);	// dummy rig as default
-	if (hamlib_enable) radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
+	if (hamlib_enable) beacon.radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
  // aprs-is config
 	aprsis_enable = readconfig.GetBoolean("aprsis", "enable", "false");
 	aprsis_server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
 	aprsis_port = readconfig.GetInteger("aprsis", "port", 8080);
 	aprsis_proxy = readconfig.Get("aprsis", "proxy", "");
 	aprsis_proxy_port = readconfig.GetInteger("aprsis", "proxy_port", 1080);
-	aprsis_user = readconfig.Get("aprsis", "user", mycall);
+	aprsis_user = readconfig.Get("aprsis", "user", beacon.mycall);
 	aprsis_pass = readconfig.Get("aprsis", "pass", "-1");
  // path config
 	unsigned int pathidx = 1;
@@ -324,7 +308,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 					fprintf(stderr,"VIA: Station callsign must be 6 characters or less.\n");
 					exit (EXIT_FAILURE);
 				}
-				if (this_ssid < 0 or myssid > 15) {
+				if (this_ssid < 0 or beacon.myssid > 15) {
 					fprintf(stderr,"VIA: Station SSID must be between 0 and 15.\n");
 					exit (EXIT_FAILURE);
 				}
@@ -337,12 +321,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			}
 		}
 
-		aprs_paths.push_back(thispath);		// add path to path vector
+		beacon.aprs_paths.push_back(thispath);		// add path to path vector
 		pathidx++;
 		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
 	} while (readconfig.GetInteger(pathsect.str(), "proto", -1) != -1);	// all paths must at least have a proto setting
-	if (verbose) printf("Found %i APRS paths.\n", (int)aprs_paths.size());
+	if (verbose) printf("Found %i APRS paths.\n", (int)beacon.aprs_paths.size());
 
 // OPEN TNC INTERFACE(s)
 
@@ -373,6 +357,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	
 // OPEN CONSOLE INTERFACE
 	if (console_enable) console_iface = open_port("console", console_port, console_baud, true, true);
+
+// SET INITAL VALUES
+	beacon.last_heard = 999;
 	
 	if (verbose) printf("Init finished!\n\n");
 }	// END OF 'init'

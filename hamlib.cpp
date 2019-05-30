@@ -3,8 +3,8 @@
 #include "beacon.h"
 
 // GLOBAL VARS
-extern vector<aprspath> aprs_paths;
 extern bool hl_debug;
+extern BeaconStruct beacon;
 
 // LOCAL VARS
 Rig* radio;								// radio control interface reference
@@ -14,10 +14,10 @@ bool tune_radio(int path) {		// use hamlib to tune the radio to the freq and mod
 	if (!hamlib_enable) return true;	// don't try to do tuning stuff if we can't
 
 	try {
-		if (radio->getFreq() == aprs_paths[path].freq) return true; // skip if already set
-		if (hl_debug) printf("HL_DEBUG: Tuning radio to %.0f\n", aprs_paths[path].freq);
-		radio->setFreq(Hz(aprs_paths[path].freq));
-		radio->setMode(aprs_paths[path].mode);
+		if (radio->getFreq() == beacon.aprs_paths[path].freq) return true; // skip if already set
+		if (hl_debug) printf("HL_DEBUG: Tuning radio to %.0f\n", beacon.aprs_paths[path].freq);
+		radio->setFreq(Hz(beacon.aprs_paths[path].freq));
+		radio->setMode(beacon.aprs_paths[path].mode);
 		sleep(2);	// let the radio do it's thing. not all of them tune instantly
 		return true;
 	} catch (const RigException& e) {

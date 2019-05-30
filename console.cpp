@@ -7,13 +7,7 @@
 #include "stringfuncs.h"
 #include "hamlib.h"
 
-// GLOBAL VARS
-extern string mycall;							// callsign we're operating under, excluding ssid
-extern unsigned char myssid;					// ssid of this station (stored as a number, not ascii)
-extern char symbol_table;						// which symbol table to use
-extern char symbol_char;						// which symbol to use from the table
-extern vector<aprspath> aprs_paths;				// APRS paths to try, in order of preference
-extern string beacon_comment;					// comment to send along with aprs packets
+extern BeaconStruct beacon;
 
 // VARS
 int console_iface;					// console serial port fd
@@ -25,8 +19,8 @@ int console_print(string s) {
 
 string build_prompt() {
 	stringstream ss;
-	ss << mycall;
-	if (myssid > 0) ss << '-' << (int)myssid;
+	ss << beacon.mycall;
+	if (beacon.myssid > 0) ss << '-' << (int)beacon.myssid;
 	ss << "> ";
 	return ss.str();
 }
@@ -36,12 +30,12 @@ void show_pathstats() {
 		
 		stringstream buff_out;
 		
-		for (unsigned int i=0; i < aprs_paths.size(); i++) {		// loop thru all paths
-				buff_out << i + 1 << ": " << aprs_paths[i].attempt;
+		for (unsigned int i=0; i < beacon.aprs_paths.size(); i++) {		// loop thru all paths
+				buff_out << i + 1 << ": " << beacon.aprs_paths[i].attempt;
 				
-				if (aprs_paths[i].attempt > 0) {
-					buff_out << ", " << aprs_paths[i].success;
-					buff_out << " (" << (int)(((float)aprs_paths[i].success / (float)aprs_paths[i].attempt) * 100) << "%)";
+				if (beacon.aprs_paths[i].attempt > 0) {
+					buff_out << ", " << beacon.aprs_paths[i].success;
+					buff_out << " (" << (int)(((float)beacon.aprs_paths[i].success / (float)beacon.aprs_paths[i].attempt) * 100) << "%)";
 				}
 				
 				console_print("\x1B[K" + buff_out.str() + "\r\n");
@@ -95,7 +89,7 @@ void* console_thread(void*) {	// handle console interaction
 		} else if (param.compare("bcnnow") == 0) {
 			console_print("Sending beacon...\r\n");
 			
-			int path = beacon();
+			int path = sendBeacon();
 			if (path == -1) {
 				console_print("Beacon path selection failed.\r\n");
 			} else {
@@ -112,14 +106,14 @@ void* console_thread(void*) {	// handle console interaction
 				if ((temp_call.length() > 6) || ((temp_ssid < 0) || (temp_ssid > 15))) {
 					console_print("Error: Invalid callsign or ssid.\r\n");
 				} else {
-					mycall = temp_call;
-					myssid = temp_ssid;
+					beacon.mycall = temp_call;
+					beacon.myssid = temp_ssid;
 					console_print("OK\r\n");
 					prompt = build_prompt();
 				}
 			} else {		// user is just asking
-				buff_out << "mycall: " << mycall;
-				if (myssid != 0) buff_out << '-' << (int)myssid;
+				buff_out << "mycall: " << beacon.mycall;
+				if (beacon.myssid != 0) buff_out << '-' << (int)beacon.myssid;
 				console_print(buff_out.str() + "\r\n");
 			}
 		} else if (param.compare("ping") == 0) {
@@ -129,27 +123,27 @@ void* console_thread(void*) {	// handle console interaction
 			buff_in >> param;
 			if (param.compare("")) {	// compare returns 0 on match
 				if (param.length() == 1) {
-					symbol_char = param.c_str()[0];
+					beacon.symbol_char = param.c_str()[0];
 					console_print("OK\r\n");
 				} else if (param.length() == 2) {
-					symbol_table = param.c_str()[0];
-					symbol_char = param.c_str()[1];
+					beacon.symbol_table = param.c_str()[0];
+					beacon.symbol_char = param.c_str()[1];
 					console_print("OK\r\n");
 				} else {
 					console_print("Error: Symbol must be one or two characters.");
 				}
 			} else {
-				buff_out << "symbol: " << symbol_table << symbol_char;
+				buff_out << "symbol: " << beacon.symbol_table << beacon.symbol_char;
 				console_print(buff_out.str() + "\r\n");
 			}
 		} else if (param.compare("comment") == 0) {
 			param = "";
 			getline(buff_in, param);	// comment can have spaces
 			if (param.compare("")) {	// compare returns 0 on match
-				beacon_comment = trim(param);
+				beacon.comment = trim(param);
 				console_print("OK\r\n");
 			} else {		// user is just asking
-				console_print("comment: " + beacon_comment + "\r\n");
+				console_print("comment: " + beacon.comment + "\r\n");
 			}
 		} else if (param.compare("stats") == 0) {
 			console_print("Path: Attempts, successes (success%)\r\n\n");

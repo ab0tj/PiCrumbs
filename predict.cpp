@@ -8,7 +8,7 @@
 extern float pos_lat;						// current latitude
 extern float pos_lon;						// current longitude
 extern unsigned short int pos_alt;			// current altitude in meters
-extern string mycall;						// callsign we're operating under, excluding ssid
+extern BeaconStruct beacon;
 extern bool fh_debug;
 
 // VARS
@@ -20,7 +20,7 @@ bool is_visible(string sat, int min_ele) {		// use PREDICT to figure out if this
 	qthfile.open("/tmp/picrumbs.qth", ios::trunc);		// PREDICT doesn't seem to be able to take a location via command line, so we need to build a "qth file" based on the current position.
 	qthfile.precision(6);
 	qthfile << fixed;
-	qthfile << mycall << '\n';
+	qthfile << beacon.mycall << '\n';
 	qthfile << ' ' << pos_lat << '\n';
 	qthfile << ' ' << -pos_lon << '\n';	// predict expects negative values for east
 	qthfile << ' ' << pos_alt << '\n';

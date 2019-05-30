@@ -13,9 +13,7 @@
 
 // GLOBAL VARS
 extern bool tnc_debug;				// rf debugging
-extern string mycall;				// callsign we're operating under, excluding ssid
-extern unsigned char myssid;		// ssid of this station (stored as a number, not ascii)
-extern unsigned int last_heard;		// time since we heard a station on vhf
+extern BeaconStruct beacon;
 extern bool console_disp;				// print smartbeaconing params to console
 extern int console_iface;				// console serial port fd
 
@@ -196,9 +194,9 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		if (console_disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
-	if ((source.callsign.compare(mycall) == 0) && source.ssid == myssid) {
-		if (tnc_debug) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", last_heard);
-		last_heard = 0;	// clear last_heard if we were successfully digi'd.
+	if ((source.callsign.compare(beacon.mycall) == 0) && source.ssid == beacon.myssid) {
+		if (tnc_debug) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", beacon.last_heard);
+		beacon.last_heard = 0;	// clear last_heard if we were successfully digi'd.
 	}
 } // END OF 'process_ax25_frame'
 

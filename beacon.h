@@ -30,7 +30,29 @@ struct aprspath {
 	bool usePathComment;				// true = use this comment instead of default
 };
 
+struct BeaconStruct
+{
+	string mycall;							// callsign we're operating under, excluding ssid
+	unsigned char myssid;					// ssid of this station (stored as a number, not ascii)
+	bool compress_pos;						// should we compress the aprs packet?
+	char symbol_table;						// which symbol table to use
+	char symbol_char;						// which symbol to use from the table
+	string comment;							// comment to send along with aprs packets
+	vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
+	unsigned int last_heard;				// time since we heard our call on vhf
+	bool gpio_enable;						// can we use gpio pins
+	bool radio_retune;						// should we retune the radio after beaconing?
+	unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
+	unsigned int sb_low_rate;				// SmartBeaconing low rate
+	unsigned short int sb_high_speed;		// SmartBeaconing high threshold, in mph
+	unsigned int sb_high_rate;				// SmartBeaconing high rate
+	unsigned short int sb_turn_min;			// SmartBeaconing turn minimum (deg)
+	unsigned short int sb_turn_time;		// SmartBeaconing turn time (minimum)
+	unsigned short int sb_turn_slope;		// SmartBeaconing turn slope
+	unsigned int static_rate;		// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+};
+
 // FUNCTIONS
 bool send_pos_report(int);
-int beacon();
+int sendBeacon();
 #endif

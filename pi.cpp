@@ -6,7 +6,7 @@
 #include "beacon.h"
 
 // GLOBAL VARS
-extern vector<aprspath> aprs_paths;		// APRS paths to try, in order of preference
+extern BeaconStruct beacon;
 extern bool fh_debug;					// frequency hopping debug
 // VARS
 string temp_file;						// file to get 1-wire temp info from, blank to disable
@@ -17,7 +17,7 @@ unsigned char gpio_psk_ptt;				// gpio pin to use for psk ptt
 
 bool check_gpio(int path) {		// check to see if gpio says we can use this path
 	bool ok = true;
-	switch (aprs_paths[path].proto) {
+	switch (beacon.aprs_paths[path].proto) {
 		case 1:
 		case 3:
 		case 4:
