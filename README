@@ -28,7 +28,8 @@ resort only, and should be used sparingly.
 USAGE:
 
 Type "make" to build PiCrumbs. libhamlib-dev, libhamlib++-dev, libcurl, libgps
-and wiringPi are required.
+and wiringPi are required. You can then install by typing "sudo make install",
+which will copy the binary to /usr/local/bin/
 
 See picrumbs.conf.example for how to configure PiCrumbs. Your modified config
 file should be saved to /etc/picrumbs.conf
