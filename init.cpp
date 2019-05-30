@@ -15,10 +15,11 @@
 #include "hamlib.h"
 #include "stringfuncs.h"
 #include "beacon.h"
+#include "gps.h"
 
 // GLOBAL VARS
 extern BeaconStruct beacon;						// Stuff related to beaconing
-extern bool gps_valid;						// should we be sending beacons?
+extern GpsStruct gps;
 extern string temp_file;						// file to get 1-wire temp info from, blank to disable
 extern bool temp_f;							// temp units: false for C, true for F
 extern unsigned char gpio_hf_en;				// gpio pin for hf enable
@@ -48,7 +49,6 @@ bool fh_debug;					// did the user ask for frequency hopping info?
 bool gps_debug;					// did the user ask for gps debug info?
 bool hl_debug;					// did the user ask for hamlib debug info?
 bool tnc_debug;					// did the user ask for tnc debug info?
-bool gps_enable;
 
 int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	switch (baudint) {
@@ -208,7 +208,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	hf_tnc_kissport = readconfig.GetInteger("hf_tnc", "kissport", 1);
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
  // gps config
-	gps_enable = readconfig.GetBoolean("gps", "enable", false);
+	gps.enabled = readconfig.GetBoolean("gps", "enable", false);
  // console config
 	bool console_enable = readconfig.GetBoolean("console", "enable", false);
 	string console_port = readconfig.Get("console", "port", "/dev/ttyS4");

@@ -10,8 +10,8 @@
 extern BeaconStruct beacon;
 
 // VARS
-int console_iface;					// console serial port fd
-bool console_disp;					// print smartbeaconing params to console
+int console_iface;				// console serial port fd
+bool console_disp;				// print smartbeaconing params to console
 
 int console_print(string s) {
 	return write(console_iface, s.c_str(), s.length());
@@ -26,23 +26,25 @@ string build_prompt() {
 }
 
 void show_pathstats() {
-		console_print("\x1B[9;0H");
-		
-		stringstream buff_out;
-		
-		for (unsigned int i=0; i < beacon.aprs_paths.size(); i++) {		// loop thru all paths
-				buff_out << i + 1 << ": " << beacon.aprs_paths[i].attempt;
-				
-				if (beacon.aprs_paths[i].attempt > 0) {
-					buff_out << ", " << beacon.aprs_paths[i].success;
-					buff_out << " (" << (int)(((float)beacon.aprs_paths[i].success / (float)beacon.aprs_paths[i].attempt) * 100) << "%)";
-				}
-				
-				console_print("\x1B[K" + buff_out.str() + "\r\n");
-				
-				buff_out.str(string());			// clear output buffer
-				buff_out.clear();
-		}
+	if (!console_disp) return;
+
+	console_print("\x1B[9;0H");
+	
+	stringstream buff_out;
+	
+	for (unsigned int i=0; i < beacon.aprs_paths.size(); i++) {		// loop thru all paths
+			buff_out << i + 1 << ": " << beacon.aprs_paths[i].attempt;
+			
+			if (beacon.aprs_paths[i].attempt > 0) {
+				buff_out << ", " << beacon.aprs_paths[i].success;
+				buff_out << " (" << (int)(((float)beacon.aprs_paths[i].success / (float)beacon.aprs_paths[i].attempt) * 100) << "%)";
+			}
+			
+			console_print("\x1B[K" + buff_out.str() + "\r\n");
+			
+			buff_out.str(string());			// clear output buffer
+			buff_out.clear();
+	}
 }
 
 void* console_thread(void*) {	// handle console interaction

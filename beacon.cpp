@@ -12,20 +12,16 @@
 #include "console.h"
 #include "version.h"
 #include "psk.h"
+#include "gps.h"
 
 // GLOBAL VARS
-extern float pos_lat;					// current latitude
-extern float pos_lon;					// current longitude
-extern float gps_speed;					// speed from gps, in mph
-extern short int gps_hdg;				// heading from gps
 extern string temp_file;				// file to get 1-wire temp info from, blank to disable
 extern bool temp_f;						// temp units: false for C, true for F
 extern bool fh_debug;					// frequency hopping debug
-extern bool console_disp;				// print smartbeaconing params to console
-extern int console_iface;				// console serial port fd
 extern unsigned char gpio_psk_ptt;		// gpio pin to use for psk ptt
 
 BeaconStruct beacon;
+extern GpsStruct gps;
 
 bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	stringstream buff;
@@ -35,15 +31,11 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	
 	char* pos = new char[21];
 	if (beacon.compress_pos) {		// build compressed position report as an array of bytes
-		float speed = gps_speed * 0.868976;				// convert mph to knots
+		float speed = gps.speed * 0.868976;				// convert mph to knots
 		pos[0] = '!';		// realtime position, no messaging
 		pos[1] = beacon.symbol_table;
-		float lat = pos_lat;	// grab a copy of our location so we can do math on it
-		float lon = pos_lon;
-		// float lat_min = modf(pos_lat, &lat);	// separate deg and min
-		// float lon_min = modf(pos_lon, &lon);
-		// lat += (lat_min/.6);	// convert min to deg and re-add it
-		// lon += (lon_min/.6);
+		float lat = gps.lat;	// grab a copy of our location so we can do math on it
+		float lon = gps.lon;
 		lat = 380926 * (90 - lat);		// formula from aprs spec
 		lon = 190463 * (180 + lon);
 		pos[2] = (int)lat / 753571 + 33;	// lat/91^3+33
@@ -59,18 +51,18 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		pos[8] = (int)lon / 91 + 33;
 		pos[9] = (int)lon % 91 + 33;
 		pos[10] = beacon.symbol_char;
-		pos[11] = gps_hdg / 4 + 33;
+		pos[11] = gps.hdg / 4 + 33;
 		pos[12] = log(speed+1)/log(1.08) + 33;
 		pos[13] = 0x5F;			// set "T" byte
 		pos[14] = 0x00;			// (null terminated string)
 	} else {	// uncompressed packet
 		char pos_lat_dir = 'N';
 		char pos_lon_dir = 'E';
-		if (pos_lat < 0) pos_lat_dir = 'S';
-		if (pos_lon < 0) pos_lon_dir = 'W';
+		if (gps.lat < 0) pos_lat_dir = 'S';
+		if (gps.lon < 0) pos_lon_dir = 'W';
 
-		sprintf(pos, "!%05.2f%c%c%06.2f%c%c", abs(int(pos_lat)*100 + (pos_lat-int(pos_lat))*60) , pos_lat_dir, beacon.symbol_table
-						    , abs(int(pos_lon)*100 + (pos_lon-int(pos_lon))*60) , pos_lon_dir, beacon.symbol_char);
+		sprintf(pos, "!%05.2f%c%c%06.2f%c%c", abs(int(gps.lat)*100 + (gps.lat-int(gps.lat))*60) , pos_lat_dir, beacon.symbol_table
+						    , abs(int(gps.lon)*100 + (gps.lon-int(gps.lon))*60) , pos_lon_dir, beacon.symbol_char);
 	}
 	buff << pos;
 	delete pos;		// memory leak fixed
@@ -211,6 +203,6 @@ int sendBeacon() {
 		
 	}
 	
-	if (console_disp) show_pathstats();
+	show_pathstats();
 	return path;
 }

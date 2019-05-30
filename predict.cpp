@@ -3,11 +3,10 @@
 #include <sstream>
 #include <cstdlib>
 #include "beacon.h"
+#include "gps.h"
 
 // GLOBAL VARS
-extern float pos_lat;						// current latitude
-extern float pos_lon;						// current longitude
-extern unsigned short int pos_alt;			// current altitude in meters
+extern GpsStruct gps;
 extern BeaconStruct beacon;
 extern bool fh_debug;
 
@@ -21,9 +20,9 @@ bool is_visible(string sat, int min_ele) {		// use PREDICT to figure out if this
 	qthfile.precision(6);
 	qthfile << fixed;
 	qthfile << beacon.mycall << '\n';
-	qthfile << ' ' << pos_lat << '\n';
-	qthfile << ' ' << -pos_lon << '\n';	// predict expects negative values for east
-	qthfile << ' ' << pos_alt << '\n';
+	qthfile << ' ' << gps.lat << '\n';
+	qthfile << ' ' << -gps.lon << '\n';	// predict expects negative values for east
+	qthfile << ' ' << gps.alt << '\n';
 	qthfile.close();
 
 	stringstream predict_cmd;
