@@ -146,7 +146,7 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 
 void process_ax25_frame(string data) {		// listen for our own packets and update last heard var
 	if (data.compare(last_tx_packet) == 0) {
-		if (tnc_debug) printf("TNC_DEBUG: Heard myself!\n");
+		if (tnc_debug) printf("TNC_DEBUG: Heard myself! Transmit audio making it into the receive audio path?\n");
 		return;
 	}
 

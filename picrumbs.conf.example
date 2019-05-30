@@ -121,6 +121,8 @@ retry = true
 via = WIDE1-1,WIDE2-1
 ; holdoff: limit use of this path to at least this interval, in seconds.
 holdoff = 10
+; comment: if included, this replaces the default beacon comment text for this path only
+comment = "2M Path"
 
 [path2]
 ; aprs-is path
@@ -131,6 +133,8 @@ proto = 2
 freq = 10147600
 mode = USB
 proto = 4
+; no comment here, to increase chances of getting through
+comment = ""
 ; psk_freq: psk63 audio frequency
 psk_freq = 2100
 ; psk_vol: psk63 volume (in percent)

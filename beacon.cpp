@@ -38,11 +38,13 @@ bool gpio_enable;						// can we use gpio pins
 bool radio_retune;						// should we retune the radio after beaconing?
 
 bool send_pos_report(int path = 0) {			// exactly what it sounds like
+	stringstream buff;
+
 	time(&aprs_paths[path].lastused);			// update lastused time on path
 	aprs_paths[path].attempt++;					// update stats
 	
 	char* pos = new char[21];
-	if (compress_pos) {		// build compressed position report, yes, byte by byte.
+	if (compress_pos) {		// build compressed position report as an array of bytes
 		float speed = gps_speed * 0.868976;				// convert mph to knots
 		pos[0] = '!';		// realtime position, no messaging
 		pos[1] = symbol_table;
@@ -80,9 +82,9 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		sprintf(pos, "!%05.2f%c%c%06.2f%c%c", abs(int(pos_lat)*100 + (pos_lat-int(pos_lat))*60) , pos_lat_dir, symbol_table
 						    , abs(int(pos_lon)*100 + (pos_lon-int(pos_lon))*60) , pos_lon_dir, symbol_char);
 	}
-	stringstream buff;
 	buff << pos;
 	delete pos;		// memory leak fixed
+
 	if (temp_file.compare("") != 0) {	// user specified a temp sensor is available
 		float t = get_temp();
 		if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
@@ -94,7 +96,15 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 			}
 		}
 	}
-	buff << beacon_comment;
+
+	if (aprs_paths[path].usePathComment)
+	{
+		buff << aprs_paths[path].comment;
+	}
+	else
+	{
+		buff << beacon_comment;
+	}
 	
 	switch (aprs_paths[path].proto) {	// choose the appropriate way to send the beacon
 		case 0:	// 1200 baud

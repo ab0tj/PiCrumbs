@@ -298,6 +298,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		if (thispath.proto == 2) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
 		thispath.retry = readconfig.GetBoolean(path_s, "retry", true);
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
+		thispath.comment = readconfig.Get(path_s, "comment", "");
+		thispath.usePathComment = readconfig.HasValue(path_s, "comment");
 		thispath.attempt = 0;
 		thispath.success = 0;
 		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater

@@ -165,7 +165,7 @@ void* console_thread(void*) {	// handle console interaction
 			console_disp = true;
 			read(console_iface, data, 1);
 			console_disp = false;
-			console_print("\r\n");
+			console_print("\x1B[2J");
 		} else {
 			console_print("Error: Unrecognized command: " + param + "\r\n");
 		}

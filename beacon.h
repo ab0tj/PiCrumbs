@@ -26,6 +26,8 @@ struct aprspath {
 	unsigned int success;				// number of times we sucessfully sent a beacon on this path
 	unsigned int psk_freq;				// psk63 audio frequency
 	unsigned int psk_vol;				// psk63 volume;
+	string comment;						// text to send in comment field
+	bool usePathComment;				// true = use this comment instead of default
 };
 
 // FUNCTIONS
