@@ -59,6 +59,7 @@ comment = PiCrumbs
 ; static_rate: seconds between beacons, 0 to use SmartBeaconing
 static_rate = 0
 ; SmartBeaconing params, see http://info.aprs.net/index.php?title=SmartBeaconing
+; these defaults should be reasonable for a vehicle based tracker
 sb_low_speed = 5
 sb_low_rate = 900
 sb_high_speed = 60
@@ -115,8 +116,7 @@ min_ele = 0
 proto = 0
 ; retry: try a second time to send a packet on this path if a digi is not heard
 retry = true
-; via: max of 8, PLEASE Google this subject before changing the default,
-; if you don't fully understand the effects.
+; via: max of 8, PLEASE Google this subject before changing if you don't fully understand the effects.
 ; YOU SHOULD NOT USE A PATH ON HF
 via = WIDE1-1,WIDE2-1
 ; holdoff: limit use of this path to at least this interval, in seconds.
@@ -135,7 +135,8 @@ mode = USB
 proto = 4
 ; no comment here, to increase chances of getting through
 comment = ""
-; psk_freq: psk63 audio frequency
+; See here for PSK63 info: http://wa8lmf.net/APRS_PSK63/
+; psk_freq: psk63 audio frequency (in Hz)
 psk_freq = 2100
-; psk_vol: psk63 volume (in percent)
+; psk_vol: psk63 volume (percent)
 psk_vol = 100
