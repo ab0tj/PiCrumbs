@@ -260,6 +260,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	do {		// loop thru all paths in the config file
 		aprspath thispath;
 		string path_s = pathsect.str();
+		thispath.name = readconfig.Get(path_s, "name", path_s);
 		thispath.freq = readconfig.GetInteger(path_s, "freq", 144390000);
 		thispath.mode = modemap[readconfig.Get(path_s, "mode", "FM")];
 		thispath.sat = readconfig.Get(path_s, "sat", "");

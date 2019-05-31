@@ -21,11 +21,11 @@ extern GpsStruct gps;
 extern DebugStruct debug;
 extern ConsoleStruct console;
 
-bool send_pos_report(int path = 0) {			// exactly what it sounds like
+bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what it sounds like
 	stringstream buff;
 
-	time(&beacon.aprs_paths[path].lastused);			// update lastused time on path
-	beacon.aprs_paths[path].attempt++;					// update stats
+	time(&path->lastused);			// update lastused time on path
+	path->attempt++;					// update stats
 	
 	char* pos = new char[21];
 	if (beacon.compress_pos) {		// build compressed position report as an array of bytes
@@ -77,35 +77,35 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		}
 	}
 
-	if (beacon.aprs_paths[path].usePathComment)
+	if (path->usePathComment)
 	{
-		buff << beacon.aprs_paths[path].comment;
+		buff << path->comment;
 	}
 	else
 	{
 		buff << beacon.comment;
 	}
 	
-	switch (beacon.aprs_paths[path].proto) {	// choose the appropriate way to send the beacon
+	switch (path->proto) {	// choose the appropriate way to send the beacon
 		case 0:	// 1200 baud
 		case 1:	// 300 baud
-			send_kiss_frame((beacon.aprs_paths[path].proto == 1), beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, beacon.aprs_paths[path].pathcalls, beacon.aprs_paths[path].pathssids, buff.str());
+			send_kiss_frame((path->proto == 1), beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
 			return true;
 		case 2:	// aprs-is path
-			return send_aprsis_http(beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, beacon.aprs_paths[path].pathcalls, beacon.aprs_paths[path].pathssids, buff.str());
+			return send_aprsis_http(beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
 		case 3:	// psk63 path
 			if (pi.gpio_enable) {
-				send_psk_aprs(beacon.aprs_paths[path].psk_freq, beacon.aprs_paths[path].psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+				send_psk_aprs(path->psk_freq, path->psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				return true;
 			}
 			return false;	// can't send psk without gpio (yet)
 		case 4: // alternate 300bd/psk
-			if (!beacon.aprs_paths[path].last_psk && pi.gpio_enable) {	// send psk
-				send_psk_aprs(beacon.aprs_paths[path].psk_freq, beacon.aprs_paths[path].psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
-				beacon.aprs_paths[path].last_psk = true;
+			if (!path->last_psk && pi.gpio_enable) {	// send psk
+				send_psk_aprs(path->psk_freq, path->psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+				path->last_psk = true;
 			} else {	// send 300bd
-				send_kiss_frame(true, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, beacon.aprs_paths[path].pathcalls, beacon.aprs_paths[path].pathssids, buff.str());
-				beacon.aprs_paths[path].last_psk = false;
+				send_kiss_frame(true, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
+				path->last_psk = false;
 			}
 			return true;
 	}
@@ -133,32 +133,33 @@ int path_select_beacon() {		// try to send an APRS beacon
 		return 0;
 	} else {
 		for (int i=0; i < paths; i++) {		// loop thru all paths
-			if (debug.fh) printf("FH_DEBUG: Considering path %i.\n", i+1);
-			if ((unsigned int)(time(NULL) - beacon.aprs_paths[i].lastused) < beacon.aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
-			if (beacon.aprs_paths[i].proto == 2) {		// try immediately if this is an internet path
-				if (send_pos_report(i)) {
+			aprspath* path = &beacon.aprs_paths[i];
+			if (debug.fh) printf("FH_DEBUG: Trying %s\n", path->name.c_str());
+			if ((unsigned int)(time(NULL) - path->lastused) < path->holdoff) continue;	// skip if we're not past the holdoff time
+			if (path->proto == 2) {		// try immediately if this is an internet path
+				if (send_pos_report(path)) {
 					return i;
 				} else continue;		// didn't work, try the next path
 			}
 			if (pi.gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
-			if (beacon.aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
-				if (is_visible(beacon.aprs_paths[i].sat, beacon.aprs_paths[i].min_ele)) {
-					if (debug.fh) printf("FH_DEBUG: %s is visible.\n", beacon.aprs_paths[i].sat.c_str()); // sat is visible, keep going.
+			if (path->sat.compare("") != 0) {	// if the user specified a sat for this path...
+				if (is_visible(path->sat, path->min_ele)) {
+					if (debug.fh) printf("FH_DEBUG: %s is visible\n", path->sat.c_str()); // sat is visible, keep going.
 				} else {
-					if (debug.fh) printf("FH_DEBUG: %s not visible.\n", beacon.aprs_paths[i].sat.c_str());
+					if (debug.fh) printf("FH_DEBUG: %s not visible\n", path->sat.c_str());
 					continue;			// skip this path is this sat isn't visible
 				}
 			}
-			if (!tune_radio(i)) continue;		// tune radio. skip if we can't tune this freq
-			send_pos_report(i);					// passed all the tests. send a beacon.
-			if (beacon.aprs_paths[i].proto == 1) sleep(10);	// give hf packet time to transmit
-			if (beacon.aprs_paths[i].proto != 0) return i;		// don't bother listening for a digi if this isn't vhf.
+			if (!tune_radio(path)) continue;		// tune radio. skip if we can't tune this freq
+			send_pos_report(path);					// passed all the tests. send a beacon.
+			if (path->proto == 1) sleep(10);	// give hf packet time to transmit
+			if (path->proto != 0) return i;		// don't bother listening for a digi if this isn't vhf.
 
 			if (!wait_for_digi()) {		// probably didn't get digi'd.
-				if (!beacon.aprs_paths[i].retry) continue;		// move on to the next one if we aren't allowed to retry here
-				if (debug.fh) printf("FH_DEBUG: Retrying.\n");
-				if (!tune_radio(i)) continue;	// just in case user is messing with radio when we want to retry
-				send_pos_report(i);				// try again
+				if (!path->retry) continue;		// move on to the next one if we aren't allowed to retry here
+				if (debug.fh) printf("FH_DEBUG: Retrying\n");
+				if (!tune_radio(path)) continue;	// just in case user is messing with radio when we want to retry
+				send_pos_report(path);				// try again
 				if (wait_for_digi()) return i;	// must have worked this time
 			} else {
 				return i;							// we did get digi'd
@@ -184,7 +185,7 @@ int sendBeacon() {
 		set_radio_freq(radio_freq);				// return radio to previous frequency
 		set_radio_mode(radio_mode);				// return radio to previous mode
 	}
-	else if (path != 0) tune_radio(0);
+	else if (path != 0) tune_radio(&beacon.aprs_paths[0]);
 
 	if (path != -1) beacon.aprs_paths[path].success++;	// update stats
 
@@ -192,11 +193,11 @@ int sendBeacon() {
 	{
 		if (path == -1)
 		{
-			printf("FH_DEBUG: Path select returned failure.\n");
+			printf("FH_DEBUG: Path select returned failure\n");
 		}
 		else
 		{
-			printf("FH_DEBUG: Success via path %d.\n", path + 1);
+			printf("FH_DEBUG: Success via %s\n", beacon.aprs_paths[path].name.c_str());
 		}
 		
 	}

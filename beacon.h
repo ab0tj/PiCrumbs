@@ -11,6 +11,7 @@ using namespace std;
 
 // STRUCTS
 struct aprspath {
+	string name;						// User-defined path name
 	freq_t freq;						// frequency in hz
 	rmode_t mode;						// FM, USB, LSB, PKTFM, etc.
 	string sat;							// sat name to look up with PREDICT
@@ -52,6 +53,6 @@ struct BeaconStruct
 };
 
 // FUNCTIONS
-bool send_pos_report(int);
+bool send_pos_report(aprspath*);
 int sendBeacon();
 #endif

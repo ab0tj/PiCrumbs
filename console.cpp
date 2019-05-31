@@ -29,11 +29,12 @@ void show_pathstats(bool align) {
 	stringstream buff_out;
 	
 	for (unsigned int i=0; i < beacon.aprs_paths.size(); i++) {		// loop thru all paths
-		buff_out << i + 1 << ": " << beacon.aprs_paths[i].success;
+		aprspath* path = &beacon.aprs_paths[i];
+		buff_out << path->name << ": " << path->success;
 		
-		if (beacon.aprs_paths[i].attempt > 0) {
-			buff_out << '/' << beacon.aprs_paths[i].attempt;
-			buff_out << " (" << (int)(((float)beacon.aprs_paths[i].success / (float)beacon.aprs_paths[i].attempt) * 100) << "%)";
+		if (path->attempt > 0) {
+			buff_out << '/' << path->attempt;
+			buff_out << " (" << (int)(((float)path->success / (float)path->attempt) * 100) << "%)";
 		}
 		
 		console_print("\x1B[K" + buff_out.str() + "\r\n");
@@ -97,7 +98,7 @@ void* console_thread(void*) {	// handle console interaction
 				buff_out << "Beacon successfully sent on path " << path + 1 << '.';
 				console_print(buff_out.str() + "\r\n");
 			}
-			if (path != 0) tune_radio(0);	// retune if necessary
+			if (path != 0) tune_radio(&beacon.aprs_paths[0]);	// retune if necessary
 		}
 		
 		else if (param.compare("mycall") == 0) {

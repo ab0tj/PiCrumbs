@@ -10,7 +10,7 @@ using namespace std;
 #include <rigclass.h>
 
 // FUNCTIONS
-bool tune_radio(int);
+bool tune_radio(aprspath*);
 freq_t get_radio_freq();
 rmode_t get_radio_mode();
 bool set_radio_freq(freq_t);

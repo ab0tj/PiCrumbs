@@ -1,20 +1,20 @@
-#include "hamlib.h"
 #include <unistd.h>
 #include "beacon.h"
 #include "debug.h"
+#include "hamlib.h"
 
 extern BeaconStruct beacon;
 extern DebugStruct debug;
 HamlibStruct hamlib;
 
-bool tune_radio(int path) {		// use hamlib to tune the radio to the freq and mode of this path
+bool tune_radio(aprspath* path) {		// use hamlib to tune the radio to the freq and mode of this path
 	if (!hamlib.enabled) return true;	// don't try to do tuning stuff if we can't
 
 	try {
-		if (hamlib.radio->getFreq() == beacon.aprs_paths[path].freq) return true; // skip if already set
-		if (debug.hl) printf("HL_DEBUG: Tuning radio to %.0f\n", beacon.aprs_paths[path].freq);
-		hamlib.radio->setFreq(Hz(beacon.aprs_paths[path].freq));
-		hamlib.radio->setMode(beacon.aprs_paths[path].mode);
+		if (hamlib.radio->getFreq() == path->freq) return true; // skip if already set
+		if (debug.hl) printf("HL_DEBUG: Tuning radio to %.0f\n", path->freq);
+		hamlib.radio->setFreq(Hz(path->freq));
+		hamlib.radio->setMode(path->mode);
 		sleep(2);	// let the radio do it's thing. not all of them tune instantly
 		return true;
 	} catch (const RigException& e) {
