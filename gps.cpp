@@ -4,10 +4,8 @@
 #include <pthread.h>
 #include <libgpsmm.h>
 
-// GLOBAL VARS
-extern bool console_disp;				// print smartbeaconing params to console
-extern int console_iface;				// console serial port fd
 extern DebugStruct debug;
+extern ConsoleStruct console;
 
 // LOCAL VARS
 GpsStruct gps;
@@ -29,7 +27,7 @@ void* gps_thread(void*) {
 		if (!gps_rec.waiting(5000000)) {
 			gps.valid = false;
 			if (debug.gps) printf("GPS_DEBUG: GPSd timeout.\n");
-			if (console_disp) console_print("\x1B[4;6H\x1B[KGPSd timeout.");
+			if (console.disp) console_print("\x1B[4;6H\x1B[KGPSd timeout.");
 			continue;
 		}
 		
@@ -47,11 +45,11 @@ void* gps_thread(void*) {
 			if (newdata->set & ALTITUDE_SET) gps.alt = newdata->fix.altitude;
 			
 			if (debug.gps) printf("GPS_DEBUG: Lat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", gps.lat, gps.lon, gps.alt, gps.speed, gps.hdg, newdata->fix.mode);
-			if (console_disp) dprintf(console_iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", gps.lat, gps.lon, gps.alt, gps.speed, gps.hdg, newdata->fix.mode);
+			if (console.disp) dprintf(console.iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", gps.lat, gps.lon, gps.alt, gps.speed, gps.hdg, newdata->fix.mode);
 		} else {
 			gps.valid = false;	// no fix
 			if (debug.gps) printf("GPS_DEBUG: No fix.\n");
-			if (console_disp) console_print("\x1B[4;6H\x1B[KNo Fix.");
+			if (console.disp) console_print("\x1B[4;6H\x1B[KNo Fix.");
 		}
 		
     }

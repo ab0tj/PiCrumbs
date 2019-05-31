@@ -15,8 +15,7 @@
 // GLOBAL VARS
 extern DebugStruct debug;
 extern BeaconStruct beacon;
-extern bool console_disp;				// print smartbeaconing params to console
-extern int console_iface;				// console serial port fd
+extern ConsoleStruct console;
 
 // VARS
 int vhf_tnc_iface;					// vhf tnc serial port fd
@@ -155,7 +154,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 	source.ssid = data[13];
 	source.decode();
 
-	if (debug.tnc || console_disp) {					// process the rest of the frame and print it out
+	if (debug.tnc || console.disp) {					// process the rest of the frame and print it out
 		ax25address destination;
 		vector<ax25address> via;
 		stringstream tnc2;
@@ -192,7 +191,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		if (index < data.length() - 3) tnc2 << ':' << StripNonAscii(data.substr(index+2));
 		
 		if (debug.tnc) printf("TNC_IN: %s\n", tnc2.str().c_str());
-		if (console_disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
+		if (console.disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
 	if ((source.callsign.compare(beacon.mycall) == 0) && source.ssid == beacon.myssid) {

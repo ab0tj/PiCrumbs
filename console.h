@@ -12,4 +12,11 @@ using namespace std;
 int console_print(string);
 void* console_thread(void*);
 void show_pathstats();
+
+// STRUCTS
+struct ConsoleStruct
+{
+    int iface;				// console serial port fd
+    bool disp;				// print smartbeaconing params to console
+};
 #endif

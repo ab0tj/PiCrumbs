@@ -15,10 +15,8 @@
 #include "gps.h"
 #include "debug.h"
 
-// GLOBAL VARS
-extern PiStruct pi;
-
 BeaconStruct beacon;
+extern PiStruct pi;
 extern GpsStruct gps;
 extern DebugStruct debug;
 

@@ -7,14 +7,11 @@
 #include "stringfuncs.h"
 #include "hamlib.h"
 
+ConsoleStruct console;
 extern BeaconStruct beacon;
 
-// VARS
-int console_iface;				// console serial port fd
-bool console_disp;				// print smartbeaconing params to console
-
 int console_print(string s) {
-	return write(console_iface, s.c_str(), s.length());
+	return write(console.iface, s.c_str(), s.length());
 }
 
 string build_prompt() {
@@ -26,7 +23,7 @@ string build_prompt() {
 }
 
 void show_pathstats() {
-	if (!console_disp) return;
+	if (!console.disp) return;
 
 	console_print("\x1B[9;0H");
 	
@@ -60,7 +57,7 @@ void* console_thread(void*) {	// handle console interaction
 	for (;;) {
 		console_print(prompt);									// send prompt to the user
 		
-		read(console_iface, data, 1);							// wait for the first char to come in the serial port
+		read(console.iface, data, 1);							// wait for the first char to come in the serial port
 		
 		while(data[0] != '\n' && data[0] != '\r') {				// keep reading until the user hits enter
 			if ((data[0] == '\b') || (data[0] == 0x7F)) {		// handle backspace
@@ -75,7 +72,7 @@ void* console_thread(void*) {	// handle console interaction
 			} else {
 				buff_in << data[0];								// this was just regular data
 			}
-			read(console_iface, data, 1);						// read another char
+			read(console.iface, data, 1);						// read another char
 		}
 		
 		console_print("\r\n");
@@ -158,9 +155,9 @@ void* console_thread(void*) {	// handle console interaction
 			console_print("TNC: \r\n\n");
 			console_print("Path: Attempts, successes (success%)");
 			show_pathstats();
-			console_disp = true;
-			read(console_iface, data, 1);
-			console_disp = false;
+			console.disp = true;
+			read(console.iface, data, 1);
+			console.disp = false;
 			console_print("\x1B[2J");
 		} else {
 			console_print("Error: Unrecognized command: " + param + "\r\n");

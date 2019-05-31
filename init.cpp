@@ -19,11 +19,13 @@
 #include "debug.h"
 #include "http.h"
 #include "pi.h"
+#include "console.h"
 
 // GLOBAL VARS
 extern BeaconStruct beacon;						// Stuff related to beaconing
 extern GpsStruct gps;
 extern PiStruct pi;
+extern ConsoleStruct console;
 extern string predict_path;					// path to PREDICT program
 extern HttpStruct http;
 extern Rig* radio;								// radio control interface reference
@@ -31,7 +33,6 @@ extern int vhf_tnc_iface;					// vhf tnc serial port fd
 extern unsigned char vhf_tnc_kissport;		// vhf tnc kiss port
 extern int hf_tnc_iface;					// hf tnc serial port fd
 extern unsigned char hf_tnc_kissport;		// hf tnc kiss port
-extern int console_iface;					// console serial port fd
 extern bool hamlib_enable;					// is radio control enabled?
 
 DebugStruct debug;
@@ -342,7 +343,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	}
 	
 // OPEN CONSOLE INTERFACE
-	if (console_enable) console_iface = open_port("console", console_port, console_baud, true, true);
+	if (console_enable) console.iface = open_port("console", console_port, console_baud, true, true);
 
 // SET INITAL VALUES
 	beacon.last_heard = 999;

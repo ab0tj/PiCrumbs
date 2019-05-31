@@ -17,17 +17,16 @@
 extern BeaconStruct beacon;
 extern GpsStruct gps;
 extern DebugStruct debug;
+extern ConsoleStruct console;
 extern int vhf_tnc_iface;				// vhf tnc serial port fd
 extern int hf_tnc_iface;				// hf tnc serial port fd
-extern int console_iface;				// console serial port fd
 extern Rig* radio;						// radio control interface reference
-extern bool console_disp;				// print smartbeaconing params to console
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
 	if (debug.verbose) printf("\nCleaning up.\n");
 	close(vhf_tnc_iface);
 	close(hf_tnc_iface);
-	close(console_iface);
+	close(console.iface);
 	radio->close();
 	curl_global_cleanup();
 	exit (EXIT_SUCCESS);
@@ -46,7 +45,7 @@ int main(int argc, char* argv[]) {
 		pthread_create(&gps_t, NULL, &gps_thread, NULL);	// start the gps interface thread if the gps interface was opened
 	}
 
-	if (console_iface > 0) {	// start the console interface if the port was opened
+	if (console.iface > 0) {	// start the console interface if the port was opened
 		pthread_t console_t;
 		pthread_create(&console_t, NULL, &console_thread, NULL);
 	}
@@ -101,11 +100,11 @@ int main(int argc, char* argv[]) {
 			}
 			
 			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
-			if (console_disp) dprintf(console_iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold, beacon.last_heard);
+			if (console.disp) dprintf(console.iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold, beacon.last_heard);
 		}
 		
 		if (debug.sb && !gps.valid && gps.enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
-		if (console_disp && !gps.valid && gps.enabled) dprintf(console_iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
+		if (console.disp && !gps.valid && gps.enabled) dprintf(console.iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
 		
 		beacon_timer++;
 		beacon.last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.
