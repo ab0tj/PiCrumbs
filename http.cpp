@@ -4,9 +4,7 @@
 #include "version.h"
 #include "debug.h"
 
-// GLOBAL VARS
 extern DebugStruct debug;
-
 HttpStruct http;
 
 size_t curlnull( char *ptr, size_t size, size_t nmemb, void *userdata) {        // empty function to make libcurl happy

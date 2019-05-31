@@ -12,16 +12,12 @@
 #include "console.h"
 #include "debug.h"
 
-// GLOBAL VARS
 extern DebugStruct debug;
 extern BeaconStruct beacon;
 extern ConsoleStruct console;
 
 // VARS
-int vhf_tnc_iface;					// vhf tnc serial port fd
-unsigned char vhf_tnc_kissport;			// vhf tnc kiss port
-int hf_tnc_iface;					// hf tnc serial port fd
-unsigned char hf_tnc_kissport;			// hf tnc kiss port
+TncStruct tnc;
 string last_tx_packet;				// the last kiss frame that we sent
 
 void ax25address::decode() {					// transform ax25 address into plaintext
@@ -111,17 +107,17 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 	buff.insert(0, 1, 0xC0);									// add kiss header
 	
 	if (hf) {
-		buff.insert(1, 1, hf_tnc_kissport << 4);				// add control byte
+		buff.insert(1, 1, tnc.hf_kissport << 4);				// add control byte
 	} else {
-		buff.insert(1, 1, vhf_tnc_kissport << 4);
+		buff.insert(1, 1, tnc.vhf_kissport << 4);
 	}
 	
 	buff.append(1, 0xC0);										// add kiss footer
 
 	if (hf) {
-		write(hf_tnc_iface, buff.c_str(), buff.length());		// spit this out the kiss interface
+		write(tnc.hf_iface, buff.c_str(), buff.length());		// spit this out the kiss interface
 	} else {
-		write(vhf_tnc_iface, buff.c_str(), buff.length());
+		write(tnc.vhf_iface, buff.c_str(), buff.length());
 	}
 	
 	if (debug.tnc) {
@@ -205,10 +201,10 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 	unsigned char * data = new unsigned char[1];
 	bool escape = false;
 	fd_set fds;
-	FD_SET(vhf_tnc_iface, &fds);
+	FD_SET(tnc.vhf_iface, &fds);
 	for (;;) {
-		// select(vhf_tnc_iface + 1, &fds, NULL, NULL, NULL);		// wait for data	TODO: why do nonblocking reads use so much cpu time?
-		read(vhf_tnc_iface, data, 1);		// read the data
+		// select(tnc.vhf_iface + 1, &fds, NULL, NULL, NULL);		// wait for data	TODO: why do nonblocking reads use so much cpu time?
+		read(tnc.vhf_iface, data, 1);		// read the data
 		if (escape) {
 			switch (data[0]) {
 				case 0xDC:

@@ -19,6 +19,14 @@ struct ax25address {				// struct for working with calls
 	void decode();
 };
 
+struct TncStruct
+{
+	int vhf_iface;					// vhf tnc serial port fd
+	unsigned char vhf_kissport;		// vhf tnc kiss port
+	int hf_iface;					// hf tnc serial port fd
+	unsigned char hf_kissport;		// hf tnc kiss port
+};
+
 // FUNCTIONS
 string encode_ax25_callsign(const char*);
 char encode_ax25_ssid(char, bool, bool);

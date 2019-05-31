@@ -14,18 +14,16 @@
 #include "debug.h"
 #include "hamlib.h"
 
-//GLOBAL VARS
 extern BeaconStruct beacon;
 extern GpsStruct gps;
 extern DebugStruct debug;
 extern ConsoleStruct console;
-extern int vhf_tnc_iface;				// vhf tnc serial port fd
-extern int hf_tnc_iface;				// hf tnc serial port fd
+extern TncStruct tnc;
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
 	if (debug.verbose) printf("\nCleaning up.\n");
-	close(vhf_tnc_iface);
-	close(hf_tnc_iface);
+	close(tnc.vhf_iface);
+	close(tnc.hf_iface);
 	close(console.iface);
 	hamlib_close();
 	curl_global_cleanup();
