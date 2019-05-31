@@ -3,22 +3,18 @@
 #include "beacon.h"
 #include "debug.h"
 
-// GLOBAL VARS
 extern BeaconStruct beacon;
 extern DebugStruct debug;
-
-// LOCAL VARS
-Rig* radio;								// radio control interface reference
-bool hamlib_enable;						// is radio control enabled?
+HamlibStruct hamlib;
 
 bool tune_radio(int path) {		// use hamlib to tune the radio to the freq and mode of this path
-	if (!hamlib_enable) return true;	// don't try to do tuning stuff if we can't
+	if (!hamlib.enabled) return true;	// don't try to do tuning stuff if we can't
 
 	try {
-		if (radio->getFreq() == beacon.aprs_paths[path].freq) return true; // skip if already set
+		if (hamlib.radio->getFreq() == beacon.aprs_paths[path].freq) return true; // skip if already set
 		if (debug.hl) printf("HL_DEBUG: Tuning radio to %.0f\n", beacon.aprs_paths[path].freq);
-		radio->setFreq(Hz(beacon.aprs_paths[path].freq));
-		radio->setMode(beacon.aprs_paths[path].mode);
+		hamlib.radio->setFreq(Hz(beacon.aprs_paths[path].freq));
+		hamlib.radio->setMode(beacon.aprs_paths[path].mode);
 		sleep(2);	// let the radio do it's thing. not all of them tune instantly
 		return true;
 	} catch (const RigException& e) {
@@ -30,7 +26,7 @@ bool tune_radio(int path) {		// use hamlib to tune the radio to the freq and mod
 
 freq_t get_radio_freq() {	// get frequency from radio
 	try {
-		return radio->getFreq();	// return current frequency
+		return hamlib.radio->getFreq();	// return current frequency
 	} catch (const RigException& e) {
 		fprintf(stderr, "Hamlib error %i: %s\n", e.errorno, e.message);
 		return -1;
@@ -41,7 +37,7 @@ freq_t get_radio_freq() {	// get frequency from radio
 rmode_t get_radio_mode() {	// get mode from radio
 	try {
 		pbwidth_t bw;
-		return radio->getMode(bw);	// return current mode
+		return hamlib.radio->getMode(bw);	// return current mode
 	} catch (const RigException& e) {
 		fprintf(stderr, "Hamlib error %i: %s\n", e.errorno, e.message);
                 return RIG_MODE_NONE;
@@ -51,7 +47,7 @@ rmode_t get_radio_mode() {	// get mode from radio
 
 bool set_radio_freq(freq_t f) {	// set radio to specified frequency
 	try {
-		radio->setFreq(Hz(f));
+		hamlib.radio->setFreq(Hz(f));
 	} catch (const RigException& e) {
 		fprintf(stderr, "Hamlib error %i: %s\n", e.errorno, e.message);
                 return false;
@@ -61,10 +57,15 @@ bool set_radio_freq(freq_t f) {	// set radio to specified frequency
 
 bool set_radio_mode(rmode_t m) {	// set radio to specified mode
 	try {
-                radio->setMode(m);
+                hamlib.radio->setMode(m);
         } catch (const RigException& e) {
                 fprintf(stderr, "Hamlib error %i: %s\n", e.errorno, e.message);
                 return false;
         }
         return true;
 }       // END OF 'set_radio_mode'
+
+void hamlib_close()
+{
+	hamlib.radio->close();
+}

@@ -28,12 +28,11 @@ extern PiStruct pi;
 extern ConsoleStruct console;
 extern string predict_path;					// path to PREDICT program
 extern HttpStruct http;
-extern Rig* radio;								// radio control interface reference
+extern HamlibStruct hamlib;
 extern int vhf_tnc_iface;					// vhf tnc serial port fd
 extern unsigned char vhf_tnc_kissport;		// vhf tnc kiss port
 extern int hf_tnc_iface;					// hf tnc serial port fd
 extern unsigned char hf_tnc_kissport;		// hf tnc kiss port
-extern bool hamlib_enable;					// is radio control enabled?
 
 DebugStruct debug;
 
@@ -233,11 +232,11 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		digitalWrite(pi.gpio_psk_ptt, 1);	// ptt is active low
 	}
  // radio control config
-	hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");
+	hamlib.enabled = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
 	string hamlib_baud = readconfig.Get("radio", "baud", "9600");		// hamlib doesn't want an int here
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);	// dummy rig as default
-	if (hamlib_enable) beacon.radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
+	if (hamlib.enabled) beacon.radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
  // aprs-is config
 	http.enabled = readconfig.GetBoolean("aprsis", "enable", "false");
 	http.server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
@@ -329,12 +328,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	}
 
 // OPEN RIG INTERFACE
-	if (hamlib_enable) {
+	if (hamlib.enabled) {
 		try {
-			radio = new Rig(hamlib_model);
-			radio->setConf("rig_pathname", hamlib_port.c_str());
-			radio->setConf("serial_speed", hamlib_baud.c_str());
-			radio->open();
+			hamlib.radio = new Rig(hamlib_model);
+			hamlib.radio->setConf("rig_pathname", hamlib_port.c_str());
+			hamlib.radio->setConf("serial_speed", hamlib_baud.c_str());
+			hamlib.radio->open();
 			if (debug.verbose) printf("Successfully opened radio port %s at %s baud\n", hamlib_port.c_str(), hamlib_baud.c_str());
 		} catch(RigException& e) {
 			fprintf(stderr, "Hamlib exception when opening rig: %i (%s)\n", e.errorno, e.message);

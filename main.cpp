@@ -12,6 +12,7 @@
 #include "console.h"
 #include "init.h"
 #include "debug.h"
+#include "hamlib.h"
 
 //GLOBAL VARS
 extern BeaconStruct beacon;
@@ -20,14 +21,13 @@ extern DebugStruct debug;
 extern ConsoleStruct console;
 extern int vhf_tnc_iface;				// vhf tnc serial port fd
 extern int hf_tnc_iface;				// hf tnc serial port fd
-extern Rig* radio;						// radio control interface reference
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
 	if (debug.verbose) printf("\nCleaning up.\n");
 	close(vhf_tnc_iface);
 	close(hf_tnc_iface);
 	close(console.iface);
-	radio->close();
+	hamlib_close();
 	curl_global_cleanup();
 	exit (EXIT_SUCCESS);
 } // END OF 'cleanup'

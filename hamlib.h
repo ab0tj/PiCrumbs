@@ -15,4 +15,12 @@ freq_t get_radio_freq();
 rmode_t get_radio_mode();
 bool set_radio_freq(freq_t);
 bool set_radio_mode(rmode_t);
+void hamlib_close();
+
+// STRUCTS
+struct HamlibStruct
+{
+    Rig* radio;								// radio control interface reference
+    bool enabled;						// is radio control enabled?
+};
 #endif
