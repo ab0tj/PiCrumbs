@@ -7,14 +7,7 @@
 // GLOBAL VARS
 extern DebugStruct debug;
 
-// LOCAL VARS
-bool aprsis_enable;					// APRS-IS Enable/Disable
-string aprsis_server;					// APRS-IS server name/IP
-unsigned short int aprsis_port;			// APRS-IS port number
-string aprsis_proxy;					// HTTP proxy to use for APRS-IS
-unsigned short int aprsis_proxy_port;	// HTTP proxy port
-string aprsis_user;						// APRS-IS username/callsign
-string aprsis_pass;						// APRS-IS password
+HttpStruct http;
 
 size_t curlnull( char *ptr, size_t size, size_t nmemb, void *userdata) {        // empty function to make libcurl happy
         return nmemb;
@@ -29,7 +22,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	string aprsis_postdata;		// we'll build this in a string since stringstream seems to drop newlines
 
 
-	if (aprsis_enable == 0) {
+	if (http.enabled == 0) {
 	    if (debug.tnc || debug.curl) {
 		printf("APRS-IS disabled.  Not sending.\n");
 	    }
@@ -37,7 +30,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	}
 
 	// first, build the TNC2 packet
-	buff << "user " << aprsis_user << " pass " << aprsis_pass << " vers PiCrumbs " << VERSION;
+	buff << "user " << http.user << " pass " << http.pass << " vers PiCrumbs " << VERSION;
 	aprsis_postdata = buff.str();
 	aprsis_postdata.append("\n");
 	buff.str(string());	// clear buff and add source
@@ -71,10 +64,10 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, *curlnull);
 	headerlist = curl_slist_append(headerlist, "Accept-Type: text/plain");
 	headerlist = curl_slist_append(headerlist, "Content-Type: application/octet-stream");
-	aprsis_url << "http://" << aprsis_server << ':' << aprsis_port;
+	aprsis_url << "http://" << http.server << ':' << http.port;
 	curl_easy_setopt(curl, CURLOPT_URL, aprsis_url.str().c_str());
-	curl_easy_setopt(curl, CURLOPT_PROXY, aprsis_proxy.c_str());
-	curl_easy_setopt(curl, CURLOPT_PROXYPORT, aprsis_proxy_port);
+	curl_easy_setopt(curl, CURLOPT_PROXY, http.proxy.c_str());
+	curl_easy_setopt(curl, CURLOPT_PROXYPORT, http.proxy_port);
 	curl_easy_setopt(curl, CURLOPT_POST, 1);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);

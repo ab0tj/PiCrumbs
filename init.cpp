@@ -17,6 +17,7 @@
 #include "beacon.h"
 #include "gps.h"
 #include "debug.h"
+#include "http.h"
 
 // GLOBAL VARS
 extern BeaconStruct beacon;						// Stuff related to beaconing
@@ -26,13 +27,7 @@ extern bool temp_f;							// temp units: false for C, true for F
 extern unsigned char gpio_hf_en;				// gpio pin for hf enable
 extern unsigned char gpio_vhf_en;				// gpio pin for vhf enable
 extern string predict_path;					// path to PREDICT program
-extern bool aprsis_enable;					// APRS-IS enable
-extern string aprsis_server;					// APRS-IS server name/IP
-extern unsigned short int aprsis_port;			// APRS-IS port number
-extern string aprsis_proxy;					// HTTP proxy to use for APRS-IS
-extern unsigned short int aprsis_proxy_port;	// HTTP proxy port
-extern string aprsis_user;						// APRS-IS username/callsign
-extern string aprsis_pass;						// APRS-IS password
+extern HttpStruct http;
 extern Rig* radio;								// radio control interface reference
 extern int vhf_tnc_iface;					// vhf tnc serial port fd
 extern unsigned char vhf_tnc_kissport;		// vhf tnc kiss port
@@ -246,13 +241,13 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);	// dummy rig as default
 	if (hamlib_enable) beacon.radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
  // aprs-is config
-	aprsis_enable = readconfig.GetBoolean("aprsis", "enable", "false");
-	aprsis_server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
-	aprsis_port = readconfig.GetInteger("aprsis", "port", 8080);
-	aprsis_proxy = readconfig.Get("aprsis", "proxy", "");
-	aprsis_proxy_port = readconfig.GetInteger("aprsis", "proxy_port", 1080);
-	aprsis_user = readconfig.Get("aprsis", "user", beacon.mycall);
-	aprsis_pass = readconfig.Get("aprsis", "pass", "-1");
+	http.enabled = readconfig.GetBoolean("aprsis", "enable", "false");
+	http.server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
+	http.port = readconfig.GetInteger("aprsis", "port", 8080);
+	http.proxy = readconfig.Get("aprsis", "proxy", "");
+	http.proxy_port = readconfig.GetInteger("aprsis", "proxy_port", 1080);
+	http.user = readconfig.Get("aprsis", "user", beacon.mycall);
+	http.pass = readconfig.Get("aprsis", "pass", "-1");
  // path config
 	unsigned int pathidx = 1;
 	stringstream pathsect;
