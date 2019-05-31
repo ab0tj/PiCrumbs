@@ -8,6 +8,7 @@ using namespace std;
 
 // INCLUDES
 #include <rigclass.h>
+#include "beacon.h"
 
 // FUNCTIONS
 bool tune_radio(aprspath*);

@@ -10,4 +10,11 @@ using namespace std;
 
 // FUNCTIONS
 bool is_visible(string, int);
+
+// STRUCTS
+struct PredictStruct
+{
+    string path;
+    string tlefile;
+};
 #endif

@@ -75,6 +75,9 @@ temp_f = false
 [predict]
 ; PREDICT path, leave blank to disable
 path = 
+; tlefile: path to where PREDICT can find TLE satellite info
+; default is ~/.predict/predict.tle
+tlefile = /etc/predict.tle
 
 ; APRS-IS settings
 [aprsis]
@@ -102,6 +105,8 @@ pass = -1
 ; if the aprs servers cannot be contacted, we will move on to the next path.
 
 [path1]
+; name: name to be shown for path stats. default is the path section name
+name = VHF
 ; freq: frequency to use for this APRS path, in Hz
 freq = 144390000
 ; mode: mode to use for this path, eg. FM, USB, LSB, PKTFM

@@ -21,12 +21,13 @@
 #include "pi.h"
 #include "console.h"
 #include "tnc.h"
+#include "predict.h"
 
-extern BeaconStruct beacon;						// Stuff related to beaconing
+extern BeaconStruct beacon;
 extern GpsStruct gps;
 extern PiStruct pi;
 extern ConsoleStruct console;
-extern string predict_path;					// path to PREDICT program
+extern PredictStruct predict;
 extern HttpStruct http;
 extern HamlibStruct hamlib;
 extern TncStruct tnc;
@@ -212,7 +213,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon.sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
 	beacon.sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
  // sat tracking config
-	predict_path = readconfig.Get("predict", "path", "");
+	predict.path = readconfig.Get("predict", "path", "");
+	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
  // gpio config
 	pi.gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
 	pi.gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);

@@ -1,5 +1,4 @@
 #include <unistd.h>
-#include "beacon.h"
 #include "debug.h"
 #include "hamlib.h"
 
