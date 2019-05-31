@@ -23,8 +23,6 @@ string build_prompt() {
 }
 
 void show_pathstats() {
-	if (!console.disp) return;
-
 	console_print("\x1B[9;0H");
 	
 	stringstream buff_out;

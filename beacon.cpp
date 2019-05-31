@@ -19,6 +19,7 @@ BeaconStruct beacon;
 extern PiStruct pi;
 extern GpsStruct gps;
 extern DebugStruct debug;
+extern ConsoleStruct console;
 
 bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	stringstream buff;
@@ -200,6 +201,6 @@ int sendBeacon() {
 		
 	}
 	
-	show_pathstats();
+	if (console.disp) show_pathstats();
 	return path;
 }
