@@ -18,14 +18,12 @@
 #include "gps.h"
 #include "debug.h"
 #include "http.h"
+#include "pi.h"
 
 // GLOBAL VARS
 extern BeaconStruct beacon;						// Stuff related to beaconing
 extern GpsStruct gps;
-extern string temp_file;						// file to get 1-wire temp info from, blank to disable
-extern bool temp_f;							// temp units: false for C, true for F
-extern unsigned char gpio_hf_en;				// gpio pin for hf enable
-extern unsigned char gpio_vhf_en;				// gpio pin for vhf enable
+extern PiStruct pi;
 extern string predict_path;					// path to PREDICT program
 extern HttpStruct http;
 extern Rig* radio;								// radio control interface reference
@@ -34,7 +32,6 @@ extern unsigned char vhf_tnc_kissport;		// vhf tnc kiss port
 extern int hf_tnc_iface;					// hf tnc serial port fd
 extern unsigned char hf_tnc_kissport;		// hf tnc kiss port
 extern int console_iface;					// console serial port fd
-extern unsigned char gpio_psk_ptt;						// gpio pin to use for psk ptt
 extern bool hamlib_enable;					// is radio control enabled?
 
 DebugStruct debug;
@@ -207,8 +204,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon.compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
 	beacon.symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
 	beacon.symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
-	temp_file = readconfig.Get("beacon", "temp_file", "");
-	temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
+	pi.temp_file = readconfig.Get("beacon", "temp_file", "");
+	pi.temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
 	beacon.static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	beacon.sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	beacon.sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
@@ -220,19 +217,19 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
  // sat tracking config
 	predict_path = readconfig.Get("predict", "path", "");
  // gpio config
-	beacon.gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
-	gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
-	gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
-	gpio_psk_ptt = readconfig.GetInteger("gpio", "psk_ptt_pin", 7);
+	pi.gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
+	pi.gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
+	pi.gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
+	pi.gpio_psk_ptt = readconfig.GetInteger("gpio", "psk_ptt_pin", 7);
 
-	if (beacon.gpio_enable) {	// set up GPIO stuff
+	if (pi.gpio_enable) {	// set up GPIO stuff
 		wiringPiSetup();
-		pinMode(gpio_hf_en, INPUT);				// set pin to input
-		pullUpDnControl(gpio_hf_en, PUD_UP);
-		pinMode(gpio_vhf_en, INPUT);
-		pullUpDnControl(gpio_vhf_en, PUD_UP);
-		pinMode(gpio_psk_ptt, OUTPUT);
-		digitalWrite(gpio_psk_ptt, 1);	// ptt is active low
+		pinMode(pi.gpio_hf_en, INPUT);				// set pin to input
+		pullUpDnControl(pi.gpio_hf_en, PUD_UP);
+		pinMode(pi.gpio_vhf_en, INPUT);
+		pullUpDnControl(pi.gpio_vhf_en, PUD_UP);
+		pinMode(pi.gpio_psk_ptt, OUTPUT);
+		digitalWrite(pi.gpio_psk_ptt, 1);	// ptt is active low
 	}
  // radio control config
 	hamlib_enable = readconfig.GetBoolean("radio", "enable", "false");

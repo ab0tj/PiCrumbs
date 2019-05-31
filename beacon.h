@@ -40,7 +40,6 @@ struct BeaconStruct
 	string comment;							// comment to send along with aprs packets
 	vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
 	unsigned int last_heard;				// time since we heard our call on vhf
-	bool gpio_enable;						// can we use gpio pins
 	bool radio_retune;						// should we retune the radio after beaconing?
 	unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
 	unsigned int sb_low_rate;				// SmartBeaconing low rate

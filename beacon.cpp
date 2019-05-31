@@ -16,9 +16,7 @@
 #include "debug.h"
 
 // GLOBAL VARS
-extern string temp_file;				// file to get 1-wire temp info from, blank to disable
-extern bool temp_f;						// temp units: false for C, true for F
-extern unsigned char gpio_psk_ptt;		// gpio pin to use for psk ptt
+extern PiStruct pi;
 
 BeaconStruct beacon;
 extern GpsStruct gps;
@@ -68,11 +66,11 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	buff << pos;
 	delete pos;		// memory leak fixed
 
-	if (temp_file.compare("") != 0) {	// user specified a temp sensor is available
+	if (pi.temp_file.compare("") != 0) {	// user specified a temp sensor is available
 		float t = get_temp();
 		if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
 			buff << t;
-			if (temp_f) {
+			if (pi.temp_f) {
 				buff << "F ";
 			} else {
 				buff << "C ";
@@ -97,14 +95,14 @@ bool send_pos_report(int path = 0) {			// exactly what it sounds like
 		case 2:	// aprs-is path
 			return send_aprsis_http(beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, beacon.aprs_paths[path].pathcalls, beacon.aprs_paths[path].pathssids, buff.str());
 		case 3:	// psk63 path
-			if (beacon.gpio_enable) {
-				send_psk_aprs(beacon.aprs_paths[path].psk_freq, beacon.aprs_paths[path].psk_vol, gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+			if (pi.gpio_enable) {
+				send_psk_aprs(beacon.aprs_paths[path].psk_freq, beacon.aprs_paths[path].psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				return true;
 			}
 			return false;	// can't send psk without gpio (yet)
 		case 4: // alternate 300bd/psk
-			if (!beacon.aprs_paths[path].last_psk && beacon.gpio_enable) {	// send psk
-				send_psk_aprs(beacon.aprs_paths[path].psk_freq, beacon.aprs_paths[path].psk_vol, gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+			if (!beacon.aprs_paths[path].last_psk && pi.gpio_enable) {	// send psk
+				send_psk_aprs(beacon.aprs_paths[path].psk_freq, beacon.aprs_paths[path].psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				beacon.aprs_paths[path].last_psk = true;
 			} else {	// send 300bd
 				send_kiss_frame(true, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, beacon.aprs_paths[path].pathcalls, beacon.aprs_paths[path].pathssids, buff.str());
@@ -131,7 +129,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 	if (beacon.last_heard < 10) return -1;		// hardcoded rate limiting
 	int paths = beacon.aprs_paths.size();
 	if (paths == 1) {		// no frequency hopping, just send a report
-		if (beacon.gpio_enable && !check_gpio(0)) return -1;
+		if (pi.gpio_enable && !check_gpio(0)) return -1;
 		send_pos_report();
 		return 0;
 	} else {
@@ -143,7 +141,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 					return i;
 				} else continue;		// didn't work, try the next path
 			}
-			if (beacon.gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
+			if (pi.gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
 			if (beacon.aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
 				if (is_visible(beacon.aprs_paths[i].sat, beacon.aprs_paths[i].min_ele)) {
 					if (debug.fh) printf("FH_DEBUG: %s is visible.\n", beacon.aprs_paths[i].sat.c_str()); // sat is visible, keep going.
