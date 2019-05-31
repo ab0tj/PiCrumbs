@@ -2,11 +2,10 @@
 #include <curl/curl.h>
 #include <sstream>
 #include "version.h"
+#include "debug.h"
 
 // GLOBAL VARS
-extern bool curl_debug;
-extern bool tnc_debug;
-extern bool fh_debug;
+extern DebugStruct debug;
 
 // LOCAL VARS
 bool aprsis_enable;					// APRS-IS Enable/Disable
@@ -31,7 +30,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 
 
 	if (aprsis_enable == 0) {
-	    if (tnc_debug || curl_debug) {
+	    if (debug.tnc || debug.curl) {
 		printf("APRS-IS disabled.  Not sending.\n");
 	    }
 	    return 1;
@@ -68,7 +67,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 
 	// then use libcurl to squirt it out to aprs-is
 	curl = curl_easy_init();
-	if (curl_debug) curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+	if (debug.curl) curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, *curlnull);
 	headerlist = curl_slist_append(headerlist, "Accept-Type: text/plain");
 	headerlist = curl_slist_append(headerlist, "Content-Type: application/octet-stream");
@@ -85,7 +84,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 
 	res = curl_easy_perform(curl);
 
-	if (tnc_debug) {
+	if (debug.tnc) {
 		printf("TNC_OUT(is): %s\n", buff.str().c_str());
 	}
 
@@ -93,7 +92,7 @@ bool send_aprsis_http(const char* source, int source_ssid, const char* destinati
 	curl_easy_cleanup(curl);
 	curl_slist_free_all(headerlist);
 
-	if (fh_debug && res != CURLE_OK) printf("APRS-IS upload failed. (%i: %s)\n", res, curl_easy_strerror(res));
+	if (debug.fh && res != CURLE_OK) printf("APRS-IS upload failed. (%i: %s)\n", res, curl_easy_strerror(res));
 
 	return (res == CURLE_OK);
 }	// END OF 'send_aprsis_http'

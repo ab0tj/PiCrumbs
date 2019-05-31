@@ -13,15 +13,16 @@
 #include "version.h"
 #include "psk.h"
 #include "gps.h"
+#include "debug.h"
 
 // GLOBAL VARS
 extern string temp_file;				// file to get 1-wire temp info from, blank to disable
 extern bool temp_f;						// temp units: false for C, true for F
-extern bool fh_debug;					// frequency hopping debug
 extern unsigned char gpio_psk_ptt;		// gpio pin to use for psk ptt
 
 BeaconStruct beacon;
 extern GpsStruct gps;
+extern DebugStruct debug;
 
 bool send_pos_report(int path = 0) {			// exactly what it sounds like
 	stringstream buff;
@@ -135,7 +136,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 		return 0;
 	} else {
 		for (int i=0; i < paths; i++) {		// loop thru all paths
-			if (fh_debug) printf("FH_DEBUG: Considering path %i.\n", i+1);
+			if (debug.fh) printf("FH_DEBUG: Considering path %i.\n", i+1);
 			if ((unsigned int)(time(NULL) - beacon.aprs_paths[i].lastused) < beacon.aprs_paths[i].holdoff) continue;	// skip if we're not past the holdoff time
 			if (beacon.aprs_paths[i].proto == 2) {		// try immediately if this is an internet path
 				if (send_pos_report(i)) {
@@ -145,9 +146,9 @@ int path_select_beacon() {		// try to send an APRS beacon
 			if (beacon.gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
 			if (beacon.aprs_paths[i].sat.compare("") != 0) {	// if the user specified a sat for this path...
 				if (is_visible(beacon.aprs_paths[i].sat, beacon.aprs_paths[i].min_ele)) {
-					if (fh_debug) printf("FH_DEBUG: %s is visible.\n", beacon.aprs_paths[i].sat.c_str()); // sat is visible, keep going.
+					if (debug.fh) printf("FH_DEBUG: %s is visible.\n", beacon.aprs_paths[i].sat.c_str()); // sat is visible, keep going.
 				} else {
-					if (fh_debug) printf("FH_DEBUG: %s not visible.\n", beacon.aprs_paths[i].sat.c_str());
+					if (debug.fh) printf("FH_DEBUG: %s not visible.\n", beacon.aprs_paths[i].sat.c_str());
 					continue;			// skip this path is this sat isn't visible
 				}
 			}
@@ -158,7 +159,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 
 			if (!wait_for_digi()) {		// probably didn't get digi'd.
 				if (!beacon.aprs_paths[i].retry) continue;		// move on to the next one if we aren't allowed to retry here
-				if (fh_debug) printf("FH_DEBUG: Retrying.\n");
+				if (debug.fh) printf("FH_DEBUG: Retrying.\n");
 				if (!tune_radio(i)) continue;	// just in case user is messing with radio when we want to retry
 				send_pos_report(i);				// try again
 				if (wait_for_digi()) return i;	// must have worked this time
@@ -190,7 +191,7 @@ int sendBeacon() {
 
 	if (path != -1) beacon.aprs_paths[path].success++;	// update stats
 
-	if (fh_debug)
+	if (debug.fh)
 	{
 		if (path == -1)
 		{

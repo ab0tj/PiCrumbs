@@ -16,6 +16,7 @@
 #include "stringfuncs.h"
 #include "beacon.h"
 #include "gps.h"
+#include "debug.h"
 
 // GLOBAL VARS
 extern BeaconStruct beacon;						// Stuff related to beaconing
@@ -41,14 +42,7 @@ extern int console_iface;					// console serial port fd
 extern unsigned char gpio_psk_ptt;						// gpio pin to use for psk ptt
 extern bool hamlib_enable;					// is radio control enabled?
 
-// VARS
-bool verbose;					// did the user ask for verbose mode?
-bool sb_debug;					// did the user ask for smartbeaconing info?
-bool curl_debug;				// let libcurl show verbose info?
-bool fh_debug;					// did the user ask for frequency hopping info?
-bool gps_debug;					// did the user ask for gps debug info?
-bool hl_debug;					// did the user ask for hamlib debug info?
-bool tnc_debug;					// did the user ask for tnc debug info?
+DebugStruct debug;
 
 int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	switch (baudint) {
@@ -110,7 +104,7 @@ int open_port(string name, string port, int baud, bool blocking, bool echo) {			
 		exit (EXIT_FAILURE);
 	} // failed to open port
 
-	if (verbose) printf("Successfully opened %s port %s at %i baud\n", name.c_str(), port.c_str(), baud);
+	if (debug.verbose) printf("Successfully opened %s port %s at %i baud\n", name.c_str(), port.c_str(), baud);
 
 	tcgetattr(iface, &options);								// get current control options for the port
 	cfsetispeed(&options, baud_code);						// set in baud rate
@@ -147,19 +141,19 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				configfile = optarg;
 				break;
 			case 'v':
-				verbose = true;	// user wants to hear about what's going on
+				debug.verbose = true;	// user wants to hear about what's going on
 				break;
 			case 'z':		// user wants debug info	TODO: should this be documented?
-				if (strcmp(optarg, "gps") == 0) gps_debug = true;
-				else if (strcmp(optarg, "tnc") == 0) tnc_debug = true;
-				else if (strcmp(optarg, "sb") == 0) sb_debug = true;
-				else if (strcmp(optarg, "fh") == 0) fh_debug = true;
+				if (strcmp(optarg, "gps") == 0) debug.gps = true;
+				else if (strcmp(optarg, "tnc") == 0) debug.tnc = true;
+				else if (strcmp(optarg, "sb") == 0) debug.sb = true;
+				else if (strcmp(optarg, "fh") == 0) debug.fh = true;
 				else if (strcmp(optarg, "hl") == 0)
 				{
 					HAMLIB_API::rig_set_debug(RIG_DEBUG_TRACE);
-					hl_debug = true;
+					debug.hl = true;
 				}
-				else if (strcmp(optarg, "is") == 0) curl_debug = true;
+				else if (strcmp(optarg, "is") == 0) debug.curl = true;
 				break;
 			case '?':		// can't understand what the user wants from us, let's set them straight
 				fprintf(stderr, "Usage: picrumbs [-v] [-c CONFIGFILE] [-z DEBUGOPT]\n\n");
@@ -172,7 +166,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			}
 	}
 
-	if (verbose) printf("PiCrumbs %s\n\n", VERSION);
+	if (debug.verbose) printf("PiCrumbs %s\n\n", VERSION);
 
 // CONFIG FILE PARSING
 
@@ -183,7 +177,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		exit (EXIT_FAILURE);
 	}
 
-	if (verbose) printf("Using config file %s\n", configfile.c_str());
+	if (debug.verbose) printf("Using config file %s\n", configfile.c_str());
  // station info
 	string call = readconfig.Get("station", "mycall", "N0CALL");	// parse the mycall config paramater
 	beacon.mycall = get_call(call);
@@ -196,7 +190,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		fprintf(stderr,"MYCALL: Station SSID must be between 0 and 15.\n"); // TODO: We don't care about this if it doesn't need to go over-the-air.
 		exit (EXIT_FAILURE);
 	}
-	if (verbose) printf("Operating as %s-%i\n", beacon.mycall.c_str(), beacon.myssid);
+	if (debug.verbose) printf("Operating as %s-%i\n", beacon.mycall.c_str(), beacon.myssid);
  // tnc config
 	// vhf
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
@@ -326,7 +320,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
 	} while (readconfig.GetInteger(pathsect.str(), "proto", -1) != -1);	// all paths must at least have a proto setting
-	if (verbose) printf("Found %i APRS paths.\n", (int)beacon.aprs_paths.size());
+	if (debug.verbose) printf("Found %i APRS paths.\n", (int)beacon.aprs_paths.size());
 
 // OPEN TNC INTERFACE(s)
 
@@ -348,7 +342,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			radio->setConf("rig_pathname", hamlib_port.c_str());
 			radio->setConf("serial_speed", hamlib_baud.c_str());
 			radio->open();
-			if (verbose) printf("Successfully opened radio port %s at %s baud\n", hamlib_port.c_str(), hamlib_baud.c_str());
+			if (debug.verbose) printf("Successfully opened radio port %s at %s baud\n", hamlib_port.c_str(), hamlib_baud.c_str());
 		} catch(RigException& e) {
 			fprintf(stderr, "Hamlib exception when opening rig: %i (%s)\n", e.errorno, e.message);
 			exit (EXIT_FAILURE);
@@ -361,5 +355,5 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 // SET INITAL VALUES
 	beacon.last_heard = 999;
 	
-	if (verbose) printf("Init finished!\n\n");
+	if (debug.verbose) printf("Init finished!\n\n");
 }	// END OF 'init'

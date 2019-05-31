@@ -4,10 +4,11 @@
 #include <cstdlib>
 #include <wiringPi.h>
 #include "beacon.h"
+#include "debug.h"
 
 // GLOBAL VARS
 extern BeaconStruct beacon;
-extern bool fh_debug;					// frequency hopping debug
+extern DebugStruct debug;
 // VARS
 string temp_file;						// file to get 1-wire temp info from, blank to disable
 bool temp_f;							// temp units: false for C, true for F
@@ -22,11 +23,11 @@ bool check_gpio(int path) {		// check to see if gpio says we can use this path
 		case 3:
 		case 4:
 			ok = (digitalRead(gpio_hf_en) == 0);
-			if (!ok && fh_debug) printf("FH_DEBUG: HF disabled via GPIO.\n");
+			if (!ok && debug.fh) printf("FH_DEBUG: HF disabled via GPIO.\n");
 			break;
 		case 0:
 			ok = (digitalRead(gpio_vhf_en) == 0);
-			if (!ok && fh_debug) printf("FH_DEBUG: VHF disabled via GPIO.\n");
+			if (!ok && debug.fh) printf("FH_DEBUG: VHF disabled via GPIO.\n");
 			break;
 	}
 	return ok;

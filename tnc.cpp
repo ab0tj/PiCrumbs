@@ -10,9 +10,10 @@
 #include "beacon.h"
 #include "stringfuncs.h"
 #include "console.h"
+#include "debug.h"
 
 // GLOBAL VARS
-extern bool tnc_debug;				// rf debugging
+extern DebugStruct debug;
 extern BeaconStruct beacon;
 extern bool console_disp;				// print smartbeaconing params to console
 extern int console_iface;				// console serial port fd
@@ -124,7 +125,7 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 		write(vhf_tnc_iface, buff.c_str(), buff.length());
 	}
 	
-	if (tnc_debug) {
+	if (debug.tnc) {
 		if (hf) {
 			printf("TNC_OUT(hf): %s", source);
 		} else {
@@ -144,7 +145,7 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 
 void process_ax25_frame(string data) {		// listen for our own packets and update last heard var
 	if (data.compare(last_tx_packet) == 0) {
-		if (tnc_debug) printf("TNC_DEBUG: Heard myself! Transmit audio making it into the receive audio path?\n");
+		if (debug.tnc) printf("TNC_DEBUG: Heard myself! Transmit audio making it into the receive audio path?\n");
 		return;
 	}
 
@@ -154,7 +155,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 	source.ssid = data[13];
 	source.decode();
 
-	if (tnc_debug || console_disp) {					// process the rest of the frame and print it out
+	if (debug.tnc || console_disp) {					// process the rest of the frame and print it out
 		ax25address destination;
 		vector<ax25address> via;
 		stringstream tnc2;
@@ -190,12 +191,12 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		
 		if (index < data.length() - 3) tnc2 << ':' << StripNonAscii(data.substr(index+2));
 		
-		if (tnc_debug) printf("TNC_IN: %s\n", tnc2.str().c_str());
+		if (debug.tnc) printf("TNC_IN: %s\n", tnc2.str().c_str());
 		if (console_disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
 	if ((source.callsign.compare(beacon.mycall) == 0) && source.ssid == beacon.myssid) {
-		if (tnc_debug) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", beacon.last_heard);
+		if (debug.tnc) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", beacon.last_heard);
 		beacon.last_heard = 0;	// clear last_heard if we were successfully digi'd.
 	}
 } // END OF 'process_ax25_frame'

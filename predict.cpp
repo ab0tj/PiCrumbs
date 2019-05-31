@@ -4,11 +4,12 @@
 #include <cstdlib>
 #include "beacon.h"
 #include "gps.h"
+#include "debug.h"
 
 // GLOBAL VARS
 extern GpsStruct gps;
 extern BeaconStruct beacon;
-extern bool fh_debug;
+extern DebugStruct debug;
 
 // VARS
 string predict_path;					// path to PREDICT program
@@ -41,7 +42,7 @@ bool is_visible(string sat, int min_ele) {		// use PREDICT to figure out if this
 		string buff_s = buff;
 
 		int ele = atoi(buff_s.substr(32, 4).c_str());
-		if (fh_debug) printf("FH_DEBUG: %s elevation is %d.\n", sat.c_str(), ele);
+		if (debug.fh) printf("FH_DEBUG: %s elevation is %d.\n", sat.c_str(), ele);
 		return (ele > min_ele);
 	} catch (exception& e) {
 		fprintf(stderr, "Error while executing PREDICT (%s): %s\n", predict_cmd.str().c_str(), e.what());

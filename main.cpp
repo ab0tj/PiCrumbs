@@ -11,20 +11,20 @@
 #include "tnc.h"
 #include "console.h"
 #include "init.h"
+#include "debug.h"
 
 //GLOBAL VARS
 extern BeaconStruct beacon;
 extern GpsStruct gps;
+extern DebugStruct debug;
 extern int vhf_tnc_iface;				// vhf tnc serial port fd
 extern int hf_tnc_iface;				// hf tnc serial port fd
 extern int console_iface;				// console serial port fd
 extern Rig* radio;						// radio control interface reference
-extern bool verbose;					// verbose interface?
-extern bool sb_debug;					// smartbeaconing debug
 extern bool console_disp;				// print smartbeaconing params to console
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
-	if (verbose) printf("\nCleaning up.\n");
+	if (debug.verbose) printf("\nCleaning up.\n");
 	close(vhf_tnc_iface);
 	close(hf_tnc_iface);
 	close(console_iface);
@@ -66,10 +66,10 @@ int main(int argc, char* argv[]) {
 	short int hdg_change = 0;
 	int beacon_timer = beacon_rate;						// send startup beacon
 	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {								// then send them periodically after that
-		// if (verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
+		// if (debug.verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
 		
 		if ((beacon_timer >= beacon_rate) && gps.valid) {		// if it's time...
-			if (sb_debug) printf("SB_DEBUG: Sending beacon.\n");
+			if (debug.sb) printf("SB_DEBUG: Sending beacon.\n");
 			sendBeacon();
 			
 			beacon_timer = 0;
@@ -100,11 +100,11 @@ int main(int argc, char* argv[]) {
 				if (abs(hdg_change) > turn_threshold && beacon_timer > beacon.sb_turn_time) beacon_timer = beacon_rate;	// SmartBeaconing spec says CornerPegging is "ALWAYS" enabled, but GPS speed doesn't seem to be accurate enough to keep this from being triggered while stopped.
 			}
 			
-			if (sb_debug) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
+			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
 			if (console_disp) dprintf(console_iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold, beacon.last_heard);
 		}
 		
-		if (sb_debug && !gps.valid && gps.enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
+		if (debug.sb && !gps.valid && gps.enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
 		if (console_disp && !gps.valid && gps.enabled) dprintf(console_iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
 		
 		beacon_timer++;
