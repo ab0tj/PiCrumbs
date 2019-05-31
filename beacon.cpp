@@ -201,6 +201,6 @@ int sendBeacon() {
 		
 	}
 	
-	if (console.disp) show_pathstats();
+	if (console.disp) show_pathstats(true);
 	return path;
 }

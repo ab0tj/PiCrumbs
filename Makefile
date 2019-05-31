@@ -14,52 +14,52 @@ picrumbs: $(PC_OBJS)
 pskgen: $(PSK_OBJS)
 	$(C) $(PSK_OBJS) -lwiringPi -o pskgen
 
-beacon.o: beacon.cpp beacon.h hamlib.h pi.h http.h predict.h tnc.h console.h version.h psk.h
+beacon.o: beacon.cpp version.h
 	$(C) $(CFLAGS) -o beacon.o beacon.cpp
 
-console.o: console.cpp console.h version.h stringfuncs.h beacon.h hamlib.h
+console.o: console.cpp version.h
 	$(C) $(CFLAGS) -o console.o console.cpp
 
-gps.o: gps.cpp gps.h console.h
+gps.o: gps.cpp
 	$(C) $(CFLAGS) -o gps.o gps.cpp
 
-hamlib.o: hamlib.cpp hamlib.h beacon.h
+hamlib.o: hamlib.cpp
 	$(C) $(CFLAGS) -o hamlib.o hamlib.cpp
 
-http.o: http.cpp http.h version.h
+http.o: http.cpp version.h
 	$(C) $(CFLAGS) -o http.o http.cpp
 
-init.o: init.cpp init.h INIReader.h version.h hamlib.h stringfuncs.h
+init.o: init.cpp version.h
 	$(C) $(CFLAGS) -o init.o init.cpp
 
-main.o: main.cpp main.h beacon.h gps.h tnc.h console.h init.h
+main.o: main.cpp
 	$(C) $(CFLAGS) -o main.o main.cpp
 
-pi.o: pi.cpp pi.h beacon.h
+pi.o: pi.cpp
 	$(C) $(CFLAGS) -o pi.o pi.cpp
 
-predict.o: predict.cpp predict.h beacon.h
+predict.o: predict.cpp
 	$(C) $(CFLAGS) -o predict.o predict.cpp
 
-stringfuncs.o: stringfuncs.cpp stringfuncs.h
+stringfuncs.o: stringfuncs.cpp
 	$(C) $(CFLAGS) -o stringfuncs.o stringfuncs.cpp
 
-tnc.o: tnc.cpp tnc.h beacon.h stringfuncs.h console.h
+tnc.o: tnc.cpp
 	$(C) $(CFLAGS) -o tnc.o tnc.cpp
 
-INIReader.o: INIReader.cpp INIReader.h ini.h
+INIReader.o: INIReader.cpp
 	$(C) $(CFLAGS) -o INIReader.o INIReader.cpp
 
-ini.o: ini.c ini.h
+ini.o: ini.c
 	$(C) $(CFLAGS) -o ini.o ini.c
 	
-psk.o: psk.cpp psk.h varicode.h
+psk.o: psk.cpp
 	$(C) $(CFLAGS) -o psk.o psk.cpp
 	
-pskgen.o: pskgen.cpp psk.h
+pskgen.o: pskgen.cpp
 	$(C) $(CFLAGS) -o pskgen.o pskgen.cpp
 	
-varicode.o: varicode.cpp varicode.h
+varicode.o: varicode.cpp
 	$(C) $(CFLAGS) -o varicode.o varicode.cpp
 
 clean:

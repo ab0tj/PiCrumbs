@@ -45,7 +45,7 @@ void* gps_thread(void*) {
 			if (newdata->set & ALTITUDE_SET) gps.alt = newdata->fix.altitude;
 			
 			if (debug.gps) printf("GPS_DEBUG: Lat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", gps.lat, gps.lon, gps.alt, gps.speed, gps.hdg, newdata->fix.mode);
-			if (console.disp) dprintf(console.iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", gps.lat, gps.lon, gps.alt, gps.speed, gps.hdg, newdata->fix.mode);
+			if (console.disp) dprintf(console.iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Fix:%iD\n", gps.lat, gps.lon, gps.alt, gps.speed, gps.hdg, newdata->fix.mode);
 		} else {
 			gps.valid = false;	// no fix
 			if (debug.gps) printf("GPS_DEBUG: No fix.\n");

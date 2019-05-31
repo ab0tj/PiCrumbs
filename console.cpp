@@ -22,23 +22,24 @@ string build_prompt() {
 	return ss.str();
 }
 
-void show_pathstats() {
-	console_print("\x1B[9;0H");
-	
+void show_pathstats(bool align) {
+	if (align) console_print("\x1B[8;0H");
+	console_print("Path: Success/Attempts (Success%)\r\n");
+
 	stringstream buff_out;
 	
 	for (unsigned int i=0; i < beacon.aprs_paths.size(); i++) {		// loop thru all paths
-			buff_out << i + 1 << ": " << beacon.aprs_paths[i].attempt;
-			
-			if (beacon.aprs_paths[i].attempt > 0) {
-				buff_out << ", " << beacon.aprs_paths[i].success;
-				buff_out << " (" << (int)(((float)beacon.aprs_paths[i].success / (float)beacon.aprs_paths[i].attempt) * 100) << "%)";
-			}
-			
-			console_print("\x1B[K" + buff_out.str() + "\r\n");
-			
-			buff_out.str(string());			// clear output buffer
-			buff_out.clear();
+		buff_out << i + 1 << ": " << beacon.aprs_paths[i].success;
+		
+		if (beacon.aprs_paths[i].attempt > 0) {
+			buff_out << '/' << beacon.aprs_paths[i].attempt;
+			buff_out << " (" << (int)(((float)beacon.aprs_paths[i].success / (float)beacon.aprs_paths[i].attempt) * 100) << "%)";
+		}
+		
+		console_print("\x1B[K" + buff_out.str() + "\r\n");
+		
+		buff_out.str(string());			// clear output buffer
+		buff_out.clear();
 	}
 }
 
@@ -75,6 +76,7 @@ void* console_thread(void*) {	// handle console interaction
 		
 		console_print("\r\n");
 		buff_in >> param;	// get command from buffer
+
 		if ((param.compare("help") == 0) || (param.compare("?") == 0)) {
 			console_print("Available commands:\r\n\n");
 			console_print("bcnnow: Send a beacon now.\r\n");
@@ -82,8 +84,10 @@ void* console_thread(void*) {	// handle console interaction
 			console_print("comment <new comment>: Set or get current beacon comment.\r\n");
 			console_print("symbol <c or tc>: Set or get current symbol table, character.\r\n");
 			console_print("stats: Get path usage statistics.\r\n");
-			console_print("info: Show tracker info.\r\n");
-		} else if (param.compare("bcnnow") == 0) {
+			console_print("info: Show tracker info.\r\n\r\n");
+		}
+		
+		else if (param.compare("bcnnow") == 0) {
 			console_print("Sending beacon...\r\n");
 			
 			int path = sendBeacon();
@@ -94,7 +98,9 @@ void* console_thread(void*) {	// handle console interaction
 				console_print(buff_out.str() + "\r\n");
 			}
 			if (path != 0) tune_radio(0);	// retune if necessary
-		} else if (param.compare("mycall") == 0) {
+		}
+		
+		else if (param.compare("mycall") == 0) {
 			param = "";
 			buff_in >> param;
 			if (param.compare("")) {	// compare returns 0 on match
@@ -113,9 +119,13 @@ void* console_thread(void*) {	// handle console interaction
 				if (beacon.myssid != 0) buff_out << '-' << (int)beacon.myssid;
 				console_print(buff_out.str() + "\r\n");
 			}
-		} else if (param.compare("ping") == 0) {
+		}
+		
+		else if (param.compare("ping") == 0) {
 			console_print("pong: Shall we play a game?\r\n");
-		} else if (param.compare("symbol") == 0) {
+		}
+		
+		else if (param.compare("symbol") == 0) {
 			param = "";
 			buff_in >> param;
 			if (param.compare("")) {	// compare returns 0 on match
@@ -133,7 +143,9 @@ void* console_thread(void*) {	// handle console interaction
 				buff_out << "symbol: " << beacon.symbol_table << beacon.symbol_char;
 				console_print(buff_out.str() + "\r\n");
 			}
-		} else if (param.compare("comment") == 0) {
+		}
+		
+		else if (param.compare("comment") == 0) {
 			param = "";
 			getline(buff_in, param);	// comment can have spaces
 			if (param.compare("")) {	// compare returns 0 on match
@@ -142,22 +154,26 @@ void* console_thread(void*) {	// handle console interaction
 			} else {		// user is just asking
 				console_print("comment: " + beacon.comment + "\r\n");
 			}
-		} else if (param.compare("stats") == 0) {
-			console_print("Path: Attempts, successes (success%)\r\n\n");
-			show_pathstats();
-		} else if (param.compare("info") == 0) {
-			console_print("\x1B[2JPiCrumbs <" + prompt + "\r\n");
+		}
+		
+		else if (param.compare("stats") == 0) {
+			show_pathstats(false);
+		}
+		
+		else if (param.compare("info") == 0) {
+			console_print("\x1B[?25l\x1B[2JPiCrumbs <" + prompt + "\r\n");
 			console_print("Press any key to quit.\r\n\n");
 			console_print("GPS: \r\n");
 			console_print("SB:  \r\n");
 			console_print("TNC: \r\n\n");
-			console_print("Path: Attempts, successes (success%)");
-			show_pathstats();
+			show_pathstats(true);
 			console.disp = true;
 			read(console.iface, data, 1);
 			console.disp = false;
-			console_print("\x1B[2J");
-		} else {
+			console_print("\x1B[?25h\x1B[2J");
+		}
+		
+		else {
 			console_print("Error: Unrecognized command: " + param + "\r\n");
 		}
 		
@@ -167,5 +183,6 @@ void* console_thread(void*) {	// handle console interaction
 		buff_out.clear();
 		param = string();				// clear param
 	}
+
 	return 0;
 } // END OF 'console_thread'

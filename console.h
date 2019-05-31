@@ -11,7 +11,7 @@ using namespace std;
 // FUNCTIONS
 int console_print(string);
 void* console_thread(void*);
-void show_pathstats();
+void show_pathstats(bool);
 
 // STRUCTS
 struct ConsoleStruct
