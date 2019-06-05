@@ -63,7 +63,7 @@ bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what
 						    , abs(int(gps.lon)*100 + (gps.lon-int(gps.lon))*60) , pos_lon_dir, beacon.symbol_char);
 	}
 	buff << pos;
-	delete pos;		// memory leak fixed
+	delete[] pos;
 
 	if (pi.temp_file.compare("") != 0) {	// user specified a temp sensor is available
 		float t = get_temp();

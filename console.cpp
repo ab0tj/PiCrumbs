@@ -4,6 +4,7 @@
 #include "version.h"
 #include "beacon.h"
 #include <unistd.h>
+#include <stdio.h>
 #include "stringfuncs.h"
 #include "hamlib.h"
 
@@ -48,35 +49,20 @@ void* console_thread(void*) {	// handle console interaction
 	stringstream buff_in;
 	stringstream buff_out;
 	string param;
-	char * data = new char[1];
+	const size_t buffsz = 256;
+	char* data = new char[buffsz];
 	
 	string prompt = build_prompt();
 	
-	console_print("\r\n");			// make sure we start on a new line
-	
 	for (;;) {
-		console_print(prompt);									// send prompt to the user
+		console_print("\r\n");							// make sure we start on a new line
+		console_print(prompt);							// send prompt to the user
+		read(console.iface, data, buffsz - 1);			// get input from user
+		console_print("\r");							// output CR for formatting
+		if (data[0] < 32 || data[0] > 127) continue;	// this wasn't a command so don't bother
 		
-		read(console.iface, data, 1);							// wait for the first char to come in the serial port
-		
-		while(data[0] != '\n' && data[0] != '\r') {				// keep reading until the user hits enter
-			if ((data[0] == '\b') || (data[0] == 0x7F)) {		// handle backspace
-				long pos = buff_in.tellp();
-				console_print("\b\b  \b\b");					// delete the echoed ^H or ^?
-				if (pos > 0) {
-					buff_in.seekp(pos - 1);						// remove the last char from the buffer
-					buff_in << ' ';
-					buff_in.seekp(pos - 1);
-					console_print("\b \b");						// remove the last char from the terminal
-				}
-			} else {
-				buff_in << data[0];								// this was just regular data
-			}
-			read(console.iface, data, 1);						// read another char
-		}
-		
-		console_print("\r\n");
-		buff_in >> param;	// get command from buffer
+		buff_in << data;
+		buff_in >> param;								// get command from buffer
 
 		if ((param.compare("help") == 0) || (param.compare("?") == 0)) {
 			console_print("Available commands:\r\n\n");
@@ -85,7 +71,7 @@ void* console_thread(void*) {	// handle console interaction
 			console_print("comment <new comment>: Set or get current beacon comment.\r\n");
 			console_print("symbol <c or tc>: Set or get current symbol table, character.\r\n");
 			console_print("stats: Get path usage statistics.\r\n");
-			console_print("info: Show tracker info.\r\n\r\n");
+			console_print("info: Show tracker info.\r\n");
 		}
 		
 		else if (param.compare("bcnnow") == 0) {
@@ -163,7 +149,7 @@ void* console_thread(void*) {	// handle console interaction
 		
 		else if (param.compare("info") == 0) {
 			console_print("\x1B[?25l\x1B[2JPiCrumbs <" + prompt + "\r\n");
-			console_print("Press any key to quit.\r\n\n");
+			console_print("Press any key to return to console.\r\n\n");
 			console_print("GPS: \r\n");
 			console_print("SB:  \r\n");
 			console_print("TNC: \r\n\n");
@@ -183,7 +169,9 @@ void* console_thread(void*) {	// handle console interaction
 		buff_out.str(string());			// clear output buffer
 		buff_out.clear();
 		param = string();				// clear param
+		data[0] = 0;					// empty string
 	}
 
+	delete[] data;
 	return 0;
 } // END OF 'console_thread'

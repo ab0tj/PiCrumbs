@@ -236,5 +236,7 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 			}
 		}
 	}
+
+	delete[] data;
 	return 0;
 } // END OF 'tnc_thread'

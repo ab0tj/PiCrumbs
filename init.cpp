@@ -1,5 +1,3 @@
-#include "init.h"
-#include "INIReader.h"
 #include <termios.h>
 #include <cstdio>
 #include <cstdlib>
@@ -11,6 +9,8 @@
 #include <rigclass.h>
 #include <curl/curl.h>
 #include <wiringPi.h>
+#include "INIReader.h"
+#include "init.h"
 #include "version.h"
 #include "hamlib.h"
 #include "stringfuncs.h"
@@ -79,7 +79,7 @@ int get_baud(int baudint) {		// return a baudrate code from the baudrate int
 	}
 }	// END OF 'get_baud'
 
-int open_port(string name, string port, int baud, bool blocking, bool echo) {			// open a serial port
+int open_port(string name, string port, int baud, bool blocking, bool canon) {			// open a serial port
 	int baud_code = get_baud(baud);
 	if (baud_code == -1) {
 		fprintf(stderr, "Invalid %s baud rate %i\n", name.c_str(), baud);
@@ -104,9 +104,14 @@ int open_port(string name, string port, int baud, bool blocking, bool echo) {			
 	options.c_cflag &= ~CSIZE;								// turn off 'csize'
 	options.c_cflag |= CS8;									// 8 bit data
 	options.c_cflag |= (CLOCAL | CREAD);					// enable the receiver and set local mode
-	options.c_lflag &= ~ICANON;								// raw input
-	if (echo) options.c_lflag |= ECHO | ECHONL;				// echo input
 	options.c_oflag &= ~OPOST;								// raw output
+	if (canon) {
+		options.c_lflag = ECHO | ECHOE | ICANON;			// echo input, set canonical mode
+		options.c_iflag |= ICRNL;							// translate CR to NL
+	} else {
+		options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);	// raw input
+	}
+	options.c_cc[VERASE] = 8;								// use BS instead of DEL
 	tcsetattr(iface, TCSANOW, &options);					// set the new options for the port
 	if (blocking) {
 		fcntl(iface, F_SETFL, 0);							// blocking reads
