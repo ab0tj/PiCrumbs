@@ -15,7 +15,6 @@
 #include "hamlib.h"
 
 extern BeaconStruct beacon;
-extern GpsStruct gps;
 extern DebugStruct debug;
 extern ConsoleStruct console;
 extern TncStruct tnc;
@@ -38,9 +37,9 @@ int main(int argc, char* argv[]) {
 	pthread_t tnc_t;
 	pthread_create(&tnc_t, NULL, &tnc_thread, NULL);
 
-	if (gps.enabled) {
+	if (gps::enabled) {
 		pthread_t gps_t;
-		pthread_create(&gps_t, NULL, &gps_thread, NULL);	// start the gps interface thread if the gps interface was opened
+		pthread_create(&gps_t, NULL, &gps::gps_thread, NULL);	// start the gps interface thread if the gps interface was opened
 	}
 
 	if (console.iface > 0) {	// start the console interface if the port was opened
@@ -64,6 +63,7 @@ int main(int argc, char* argv[]) {
 	int beacon_timer = beacon_rate;						// send startup beacon
 	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {								// then send them periodically after that
 		// if (debug.verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
+		GpsPos gps = gps::getPos();
 		
 		if ((beacon_timer >= beacon_rate) && gps.valid) {		// if it's time...
 			if (debug.sb) printf("SB_DEBUG: Sending beacon.\n");
@@ -101,8 +101,8 @@ int main(int argc, char* argv[]) {
 			if (console.disp) dprintf(console.iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold, beacon.last_heard);
 		}
 		
-		if (debug.sb && !gps.valid && gps.enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
-		if (console.disp && !gps.valid && gps.enabled) dprintf(console.iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
+		if (debug.sb && !gps.valid && gps::enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
+		if (console.disp && !gps.valid && gps::enabled) dprintf(console.iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
 		
 		beacon_timer++;
 		beacon.last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.

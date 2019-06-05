@@ -17,12 +17,12 @@
 
 BeaconStruct beacon;
 extern PiStruct pi;
-extern GpsStruct gps;
 extern DebugStruct debug;
 extern ConsoleStruct console;
 
 bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what it sounds like
 	stringstream buff;
+	GpsPos gps = gps::getPos();
 
 	time(&path->lastused);			// update lastused time on path
 	path->attempt++;					// update stats

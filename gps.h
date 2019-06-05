@@ -6,9 +6,10 @@ using namespace std;
 #ifndef __GPS_INC
 #define __GPS_INC
 
-struct GpsStruct
+#include <mutex>
+
+struct GpsPos
 {
-    bool enabled;                   // enabled by config?
     bool valid;						// should we be sending beacons?
     float lat;					    // current latitude
     float lon;					    // current longitude
@@ -17,6 +18,11 @@ struct GpsStruct
     short int hdg;					// heading from gps
 };
 
-// FUNCTIONS
-void* gps_thread(void*);
+namespace gps
+{
+    extern bool enabled;
+    void* gps_thread(void*);
+    GpsPos getPos();
+}
+
 #endif

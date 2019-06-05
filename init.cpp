@@ -24,7 +24,6 @@
 #include "predict.h"
 
 extern BeaconStruct beacon;
-extern GpsStruct gps;
 extern PiStruct pi;
 extern ConsoleStruct console;
 extern PredictStruct predict;
@@ -197,7 +196,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	tnc.hf_kissport = readconfig.GetInteger("hf_tnc", "kissport", 1);
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
  // gps config
-	gps.enabled = readconfig.GetBoolean("gps", "enable", false);
+	gps::enabled = readconfig.GetBoolean("gps", "enable", false);
  // console config
 	bool console_enable = readconfig.GetBoolean("console", "enable", false);
 	string console_port = readconfig.Get("console", "port", "/dev/ttyS4");
