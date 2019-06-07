@@ -30,7 +30,7 @@ USAGE:
 Install dependencies
   apt install libhamlib-dev libhamlib++-dev libcurl-dev libgps-dev wiringpi
   
-Build and installPiCrumbs
+Build and install PiCrumbs
   make
   sudo make install
 
