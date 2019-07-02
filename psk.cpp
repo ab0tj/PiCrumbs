@@ -4,7 +4,6 @@
 #include <sstream>
 #include <cstring>
 #include <iomanip>
-#include <wiringPi.h>
 
 int gcd(int a, int b) {
   int c;
@@ -96,14 +95,14 @@ void send_postamble(SampleGenerator& sine, FILE *aplay, float baud) {
 	}
 }
 
-void send_psk(float baud, unsigned int freq, unsigned char vol, unsigned char ptt_pin, const char* text) {
+void send_psk(float baud, unsigned int freq, unsigned char vol, GpioPin ptt_pin, const char* text) {
 	SampleGenerator sine;
 	
 	FILE *aplay = popen("aplay -q", "w");	// open pipe to aplay
 	
 	sine.init(8000, 8, freq, vol, baud);
 
-	digitalWrite(ptt_pin, 0);	// pull this line low for PTT
+	gpio::setPin(ptt_pin, true);	// enable PTT
 	
 	send_preamble(sine, aplay, baud);
 	
@@ -113,12 +112,12 @@ void send_psk(float baud, unsigned int freq, unsigned char vol, unsigned char pt
 	
 	send_postamble(sine, aplay, baud);
 	
-	digitalWrite(ptt_pin, 1);	// turn off PTT		TODO: is this gonna screw with DireWolf's PTT?
+	gpio::setPin(ptt_pin, false);	// turn off PTT
 	
 	pclose(aplay);
 }
 
-void send_psk_aprs(unsigned int freq, unsigned char vol, unsigned char ptt_pin, const char* source, unsigned char source_ssid, const char* destination, unsigned char destination_ssid, const char* payload) {
+void send_psk_aprs(unsigned int freq, unsigned char vol, GpioPin ptt_pin, const char* source, unsigned char source_ssid, const char* destination, unsigned char destination_ssid, const char* payload) {
 	stringstream buff;
 
 	buff << source;

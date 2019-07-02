@@ -2,9 +2,9 @@
 #include "console.h"
 #include "debug.h"
 #include <pthread.h>
+#include <mutex>
 #include <libgpsmm.h>
 
-extern DebugStruct debug;
 extern ConsoleStruct console;
 
 namespace gps

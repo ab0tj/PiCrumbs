@@ -3,7 +3,6 @@
 #include "hamlib.h"
 
 extern BeaconStruct beacon;
-extern DebugStruct debug;
 HamlibStruct hamlib;
 
 bool tune_radio(aprspath* path) {		// use hamlib to tune the radio to the freq and mode of this path

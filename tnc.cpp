@@ -12,7 +12,6 @@
 #include "console.h"
 #include "debug.h"
 
-extern DebugStruct debug;
 extern BeaconStruct beacon;
 extern ConsoleStruct console;
 
@@ -200,10 +199,8 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 	string buff = "";
 	unsigned char * data = new unsigned char[1];
 	bool escape = false;
-	fd_set fds;
-	FD_SET(tnc.vhf_iface, &fds);
+
 	for (;;) {
-		// select(tnc.vhf_iface + 1, &fds, NULL, NULL, NULL);		// wait for data	TODO: why do nonblocking reads use so much cpu time?
 		read(tnc.vhf_iface, data, 1);		// read the data
 		if (escape) {
 			switch (data[0]) {

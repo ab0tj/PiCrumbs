@@ -10,6 +10,7 @@ using namespace std;
 #include <vector>
 #include <stdint.h>
 #include <stdio.h>
+#include "gpio.h"
 
 // CLASSES
 class SampleGenerator {
@@ -32,6 +33,6 @@ class SampleGenerator {
 void send_psk_char(char, SampleGenerator&, FILE*);
 void send_preamble(SampleGenerator&, FILE*, float);
 void send_postamble(SampleGenerator&, FILE*, float);
-void send_psk_aprs(unsigned int, unsigned char, unsigned char, const char*, unsigned char, const char*, unsigned char, const char*);
+void send_psk_aprs(unsigned int, unsigned char, GpioPin, const char*, unsigned char, const char*, unsigned char, const char*);
 
 #endif

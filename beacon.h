@@ -49,7 +49,9 @@ struct BeaconStruct
 	unsigned short int sb_turn_min;			// SmartBeaconing turn minimum (deg)
 	unsigned short int sb_turn_time;		// SmartBeaconing turn time (minimum)
 	unsigned short int sb_turn_slope;		// SmartBeaconing turn slope
-	unsigned int static_rate;		// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+	unsigned int static_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+    string temp_file;						// file to get temperature info from, blank to disable
+    bool temp_f;							// temp units: false for C, true for F
 };
 
 // FUNCTIONS

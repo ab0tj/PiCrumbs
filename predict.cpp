@@ -8,7 +8,6 @@
 
 // GLOBAL VARS
 extern BeaconStruct beacon;
-extern DebugStruct debug;
 
 // VARS
 PredictStruct predict;

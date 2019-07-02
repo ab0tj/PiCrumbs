@@ -1,6 +1,6 @@
 C=g++
 CFLAGS=-c -Wall
-PC_OBJS=beacon.o console.o gps.o hamlib.o http.o init.o main.o pi.o predict.o psk.o stringfuncs.o tnc.o INIReader.o varicode.o ini.o
+PC_OBJS=beacon.o console.o gps.o hamlib.o http.o init.o main.o gpio.o predict.o psk.o stringfuncs.o tnc.o INIReader.o varicode.o ini.o
 PSK_OBJS=psk.o pskgen.o varicode.o
 
 all: picrumbs
@@ -35,8 +35,8 @@ init.o: init.cpp version.h
 main.o: main.cpp
 	$(C) $(CFLAGS) -o main.o main.cpp
 
-pi.o: pi.cpp
-	$(C) $(CFLAGS) -o pi.o pi.cpp
+gpio.o: gpio.cpp
+	$(C) $(CFLAGS) -o gpio.o gpio.cpp
 
 predict.o: predict.cpp
 	$(C) $(CFLAGS) -o predict.o predict.cpp

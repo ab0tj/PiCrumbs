@@ -6,8 +6,6 @@ using namespace std;
 #ifndef __GPS_INC
 #define __GPS_INC
 
-#include <mutex>
-
 struct GpsPos
 {
     bool valid;						// should we be sending beacons?

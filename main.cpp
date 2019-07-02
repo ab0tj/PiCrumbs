@@ -15,7 +15,6 @@
 #include "hamlib.h"
 
 extern BeaconStruct beacon;
-extern DebugStruct debug;
 extern ConsoleStruct console;
 extern TncStruct tnc;
 
@@ -60,12 +59,13 @@ int main(int argc, char* argv[]) {
 	float turn_threshold = 0;
 	short int hdg_last = 0;
 	short int hdg_change = 0;
-	int beacon_timer = beacon_rate;						// send startup beacon
-	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {								// then send them periodically after that
+	int beacon_timer = beacon_rate;									// send startup beacon
+	
+	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {		// then send them periodically after that
 		// if (debug.verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
 		GpsPos gps = gps::getPos();
 		
-		if ((beacon_timer >= beacon_rate) && gps.valid) {		// if it's time...
+		if ((beacon_timer >= beacon_rate) && gps.valid) {			// if it's time...
 			if (debug.sb) printf("SB_DEBUG: Sending beacon.\n");
 			sendBeacon();
 			
@@ -75,8 +75,7 @@ int main(int argc, char* argv[]) {
 
 		if ((beacon.static_rate == 0) && gps.valid) {		// here we will implement SmartBeaconing(tm) from HamHUD.net
 															// see http://www.hamhud.net/hh2/smartbeacon.html for more info
-			short int hdg_curr = gps.hdg;	// capture heading in case it happens to change during this calculation
-			short int hdg_diff = hdg_curr - hdg_last;
+			short int hdg_diff = gps.hdg - hdg_last;
 			
 			if (gps.speed <= beacon.sb_low_speed) {
 				beacon_rate = beacon.sb_low_rate;
@@ -88,7 +87,7 @@ int main(int argc, char* argv[]) {
 			
 				if (abs(hdg_diff) <= 180) {
 					hdg_change = abs(hdg_diff);
-				} else if (hdg_curr > hdg_last) {		// thanks to saus on stackoverflow for this nifty solution
+				} else if (gps.hdg > hdg_last) {		// thanks to saus on stackoverflow for this nifty solution
 					hdg_change = abs(hdg_diff) - 360;
 				} else {
 					hdg_change = 360 - abs(hdg_diff);
@@ -97,8 +96,8 @@ int main(int argc, char* argv[]) {
 				if (abs(hdg_change) > turn_threshold && beacon_timer > beacon.sb_turn_time) beacon_timer = beacon_rate;	// SmartBeaconing spec says CornerPegging is "ALWAYS" enabled, but GPS speed doesn't seem to be accurate enough to keep this from being triggered while stopped.
 			}
 			
-			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.speed, beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold);
-			if (console.disp) dprintf(console.iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_curr, hdg_change, turn_threshold, beacon.last_heard);
+			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.speed, beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold);
+			if (console.disp) dprintf(console.iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold, beacon.last_heard);
 		}
 		
 		if (debug.sb && !gps.valid && gps::enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);

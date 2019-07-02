@@ -67,7 +67,8 @@ sb_high_rate = 180
 sb_turn_min = 30
 sb_turn_time = 15
 sb_turn_slope = 255
-; temp_file: path to 1-wire temp sensor. leave blank to disable.
+; temp_file: path to hwmon temperature sensor. leave blank to disable.
+; example: /sys/class/hwmon/hwmon0/temp1_input
 temp_file = 
 ; temp_f: temperature units. false for C, true for F
 temp_f = false

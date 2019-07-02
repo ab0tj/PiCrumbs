@@ -3,9 +3,10 @@
 #include <cmath>
 #include <cstdio>
 #include <sstream>
+#include <fstream>
 #include <unistd.h>
 #include "hamlib.h"
-#include "pi.h"
+#include "gpio.h"
 #include "http.h"
 #include "predict.h"
 #include "tnc.h"
@@ -16,9 +17,9 @@
 #include "debug.h"
 
 BeaconStruct beacon;
-extern PiStruct pi;
-extern DebugStruct debug;
 extern ConsoleStruct console;
+
+int get_temp();
 
 bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what it sounds like
 	stringstream buff;
@@ -65,11 +66,11 @@ bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what
 	buff << pos;
 	delete[] pos;
 
-	if (pi.temp_file.compare("") != 0) {	// user specified a temp sensor is available
+	if (beacon.temp_file.compare("") != 0) {	// user specified a temp sensor is available
 		float t = get_temp();
 		if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
 			buff << t;
-			if (pi.temp_f) {
+			if (beacon.temp_f) {
 				buff << "F ";
 			} else {
 				buff << "C ";
@@ -94,14 +95,14 @@ bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what
 		case 2:	// aprs-is path
 			return send_aprsis_http(beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
 		case 3:	// psk63 path
-			if (pi.gpio_enable) {
-				send_psk_aprs(path->psk_freq, path->psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+			if (gpio::enabled) {
+				send_psk_aprs(path->psk_freq, path->psk_vol, gpio::psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				return true;
 			}
 			return false;	// can't send psk without gpio (yet)
 		case 4: // alternate 300bd/psk
-			if (!path->last_psk && pi.gpio_enable) {	// send psk
-				send_psk_aprs(path->psk_freq, path->psk_vol, pi.gpio_psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+			if (!path->last_psk && gpio::enabled) {	// send psk
+				send_psk_aprs(path->psk_freq, path->psk_vol, gpio::psk_ptt, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				path->last_psk = true;
 			} else {	// send 300bd
 				send_kiss_frame(true, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
@@ -128,7 +129,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 	if (beacon.last_heard < 10) return -1;		// hardcoded rate limiting
 	int paths = beacon.aprs_paths.size();
 	if (paths == 1) {		// no frequency hopping, just send a report
-		if (pi.gpio_enable && !check_gpio(0)) return -1;
+		if (gpio::enabled && !gpio::check_path(0)) return -1;
 		send_pos_report();
 		return 0;
 	} else {
@@ -141,7 +142,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 					return i;
 				} else continue;		// didn't work, try the next path
 			}
-			if (pi.gpio_enable && !check_gpio(i)) continue;	// skip if gpio says no
+			if (gpio::enabled && !gpio::check_path(i)) continue;	// skip if gpio says no
 			if (path->sat.compare("") != 0) {	// if the user specified a sat for this path...
 				if (is_visible(path->sat, path->min_ele)) {
 					if (debug.fh) printf("FH_DEBUG: %s is visible\n", path->sat.c_str()); // sat is visible, keep going.
@@ -177,6 +178,7 @@ int sendBeacon() {
 	if (beacon.radio_retune) {
 		radio_freq = get_radio_freq();			// save radio frequency
 		radio_mode = get_radio_mode();			// save radio mode
+		if (debug.verbose) printf("FH_DEBUG: Will retune to %.0f\n", radio_freq);
 	}
 
 	int path = path_select_beacon();			// send a beacon and do some housekeeping afterward
@@ -204,4 +206,37 @@ int sendBeacon() {
 	
 	if (console.disp) show_pathstats(true);
 	return path;
+}
+
+int get_w1_temp() {	// get temperature from one-wire sensor
+	ifstream tempfile;
+	string line;
+	int temp = 0;
+	tempfile.open(beacon.temp_file.c_str());
+	if (!tempfile.is_open()) return -65535;		// return absurdly low value so we know it's invalid.
+	getline(tempfile, line);
+	if (line.substr(36,3).compare("YES") == 0) {
+		getline(tempfile, line, '=');
+		getline(tempfile, line);
+		temp = atoi(line.c_str());
+		if (beacon.temp_f) temp = 1.8*temp+32000;
+		temp /= 1000;
+	} else temp = -65535;
+	tempfile.close();
+	return temp;
+} // END OF 'get_w1_temp'
+
+int get_temp()	// get temperature from hwmon formatted file
+{
+	ifstream tempfile;
+	string line;
+	int temp = 0;
+	tempfile.open(beacon.temp_file.c_str());
+	if (!tempfile.is_open()) return -65535;		// return absurdly low value so we know it's invalid.
+	getline(tempfile, line);
+	temp = atoi(line.c_str());
+	if (beacon.temp_f) temp = 1.8*temp+32000;
+	temp /= 1000;
+	tempfile.close();
+	return temp;
 }

@@ -12,4 +12,6 @@ struct DebugStruct
     bool tnc;					// did the user ask for tnc debug info?
 };
 
+extern DebugStruct debug;
+
 #endif

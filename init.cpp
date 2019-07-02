@@ -8,7 +8,6 @@
 #include <vector>
 #include <rigclass.h>
 #include <curl/curl.h>
-#include <wiringPi.h>
 #include "INIReader.h"
 #include "init.h"
 #include "version.h"
@@ -18,13 +17,12 @@
 #include "gps.h"
 #include "debug.h"
 #include "http.h"
-#include "pi.h"
+#include "gpio.h"
 #include "console.h"
 #include "tnc.h"
 #include "predict.h"
 
 extern BeaconStruct beacon;
-extern PiStruct pi;
 extern ConsoleStruct console;
 extern PredictStruct predict;
 extern HttpStruct http;
@@ -206,8 +204,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon.compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
 	beacon.symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
 	beacon.symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
-	pi.temp_file = readconfig.Get("beacon", "temp_file", "");
-	pi.temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
+	beacon.temp_file = readconfig.Get("beacon", "temp_file", "");
+	beacon.temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
 	beacon.static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	beacon.sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	beacon.sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
@@ -220,20 +218,17 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
  // gpio config
-	pi.gpio_enable = readconfig.GetBoolean("gpio", "enable", false);
-	pi.gpio_hf_en = readconfig.GetInteger("gpio", "hf_en_pin", 5);
-	pi.gpio_vhf_en = readconfig.GetInteger("gpio", "vhf_en_pin", 6);
-	pi.gpio_psk_ptt = readconfig.GetInteger("gpio", "psk_ptt_pin", 7);
+	gpio::enabled = readconfig.GetBoolean("gpio", "enable", false);
+	gpio::hf_en.pin = readconfig.GetInteger("gpio", "hf_en_pin", 65536);
+	gpio::hf_en.pullup = readconfig.GetBoolean("gpio", "hf_en_pullup", false);
+	gpio::hf_en.type = wiringPi;
+	gpio::vhf_en.pin = readconfig.GetInteger("gpio", "vhf_en_pin", 65536);
+	gpio::vhf_en.pullup = readconfig.GetBoolean("gpio", "vhf_en_pullup", false);
+	gpio::vhf_en.type = wiringPi;
+	gpio::psk_ptt.pin = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
+	gpio::psk_ptt.type = wiringPi;
+	if (gpio::enabled) gpio::init();
 
-	if (pi.gpio_enable) {	// set up GPIO stuff
-		wiringPiSetup();
-		pinMode(pi.gpio_hf_en, INPUT);				// set pin to input
-		pullUpDnControl(pi.gpio_hf_en, PUD_UP);
-		pinMode(pi.gpio_vhf_en, INPUT);
-		pullUpDnControl(pi.gpio_vhf_en, PUD_UP);
-		pinMode(pi.gpio_psk_ptt, OUTPUT);
-		digitalWrite(pi.gpio_psk_ptt, 1);	// ptt is active low
-	}
  // radio control config
 	hamlib.enabled = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
