@@ -25,6 +25,7 @@ namespace gpio
     int get_temp();
     void init();
     void setPin(GpioPin, bool);
+    bool readPin(GpioPin);
     extern bool enabled;			    // can we use gpio pins
     extern GpioPin hf_en;			    // gpio pin for hf enable
     extern GpioPin vhf_en;			    // gpio pin for vhf enable

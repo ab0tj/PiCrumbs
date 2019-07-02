@@ -39,12 +39,19 @@ enable = false
 port = /dev/ttyS4
 baud = 115200
 
-; Raspberry Pi GPIO Settings
+; GPIO Settings
 [gpio]
 enable = false
+; pins: wiringPi numbering, negative for active low
+; hf_en: switch to enable or disable HF transmission
 hf_en_pin = 5
+; set pullup to true to enable the gpio's internal pullup resistor
+hf_en_pullup = true;
+; vhf_en: switch to enable or disable VHF transmission
 vhf_en_pin = 6
-psk_ptt_pin = 7
+vhf_en_pullup = true;
+; psk_ptt: gpio pin to use for PTT while transmitting PSK63
+psk_ptt_pin = -7
 
 ; Beacon Params:
 [beacon]

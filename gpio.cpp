@@ -34,6 +34,8 @@ namespace gpio
 
 	void setPin(GpioPin p, bool val)	// set GPIO pin to the requested value
 	{
+		if (p.enabled) return;
+
 		if (p.type == wiringPi)
 		{
 			if (val)
@@ -44,15 +46,7 @@ namespace gpio
 		}
 	}
 
-	void init()
-	{
-		wiringPiSetup();
-		if (hf_en.pin < 65536) initPin(hf_en, INPUT);
-		if (hf_en.pin < 65536) initPin(vhf_en, INPUT);
-		if (psk_ptt.pin < 65536) initPin(psk_ptt, OUTPUT);
-	}
-
-	bool isPinActive(GpioPin p)
+	bool readPin(GpioPin p)
 	{
 		if (!p.enabled) return false;
 
@@ -66,6 +60,14 @@ namespace gpio
 		return false;
 	}
 
+	void init()
+	{
+		wiringPiSetup();
+		if (hf_en.pin < 65536) initPin(hf_en, INPUT);
+		if (hf_en.pin < 65536) initPin(vhf_en, INPUT);
+		if (psk_ptt.pin < 65536) initPin(psk_ptt, OUTPUT);
+	}
+
 	bool check_path(int path) {		// check to see if gpio says we can use this path
 		bool ok = true;
 
@@ -75,11 +77,11 @@ namespace gpio
 			case 1:
 			case 3:
 			case 4:
-				ok = isPinActive(hf_en);
+				ok = readPin(hf_en);
 				if (!ok && debug.fh) printf("FH_DEBUG: HF disabled via GPIO.\n");
 				break;
 			case 0:
-				ok = isPinActive(vhf_en);
+				ok = readPin(vhf_en);
 				if (!ok && debug.fh) printf("FH_DEBUG: VHF disabled via GPIO.\n");
 				break;
 		}
