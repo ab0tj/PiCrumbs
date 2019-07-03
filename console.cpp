@@ -84,7 +84,7 @@ void* console_thread(void*) {	// handle console interaction
 				buff_out << "Beacon successfully sent on path " << path + 1 << '.';
 				console_print(buff_out.str() + "\r\n");
 			}
-			if (path != 0) tune_radio(&beacon.aprs_paths[0]);	// retune if necessary
+			if (path != 0) tune_radio(beacon.aprs_paths[0].freq, beacon.aprs_paths[0].mode);	// retune if necessary
 		}
 		
 		else if (param.compare("mycall") == 0) {

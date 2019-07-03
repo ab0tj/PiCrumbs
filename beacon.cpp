@@ -21,12 +21,12 @@ extern ConsoleStruct console;
 
 int get_temp();
 
-bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what it sounds like
+bool send_pos_report(aprspath& path = beacon.aprs_paths[0]) {			// exactly what it sounds like
 	stringstream buff;
 	GpsPos gps = gps::getPos();
 
-	time(&path->lastused);			// update lastused time on path
-	path->attempt++;					// update stats
+	time(&path.lastused);			// update lastused time on path
+	path.attempt++;					// update stats
 	
 	char* pos = new char[21];
 	if (beacon.compress_pos) {		// build compressed position report as an array of bytes
@@ -78,35 +78,35 @@ bool send_pos_report(aprspath* path = &beacon.aprs_paths[0]) {			// exactly what
 		}
 	}
 
-	if (path->usePathComment)
+	if (path.usePathComment)
 	{
-		buff << path->comment;
+		buff << path.comment;
 	}
 	else
 	{
 		buff << beacon.comment;
 	}
 	
-	switch (path->proto) {	// choose the appropriate way to send the beacon
+	switch (path.proto) {	// choose the appropriate way to send the beacon
 		case VHF_AX25:
 		case HF_AX25:
-			send_kiss_frame((path->proto == HF_AX25), beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
+			send_kiss_frame((path.proto == HF_AX25), beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, buff.str());
 			return true;
 		case APRS_IS:
-			return send_aprsis_http(beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
+			return send_aprsis_http(beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, buff.str());
 		case PSK63:
 			if (pskPttPin.enabled) {
-				send_psk_aprs(path->psk_freq, path->psk_vol, pskPttPin, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+				send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				return true;
 			}
 			return false;	// can't send psk without gpio (yet)
 		case PSKAndAX25:
-			if (!path->last_psk && pskPttPin.enabled) {	// send psk
-				send_psk_aprs(path->psk_freq, path->psk_vol, pskPttPin, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
-				path->last_psk = true;
+			if (!path.last_psk && pskPttPin.enabled) {	// send psk
+				send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
+				path.last_psk = true;
 			} else {	// send 300bd
-				send_kiss_frame(true, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path->pathcalls, path->pathssids, buff.str());
-				path->last_psk = false;
+				send_kiss_frame(true, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, buff.str());
+				path.last_psk = false;
 			}
 			return true;
 	}
@@ -129,40 +129,40 @@ int path_select_beacon() {		// try to send an APRS beacon
 	if (beacon.last_heard < 10) return -1;		// hardcoded rate limiting
 
 	for (uint i=0; i < beacon.aprs_paths.size(); i++) {		// loop thru all paths
-		aprspath* path = &beacon.aprs_paths[i];
-		if (debug.fh) printf("FH_DEBUG: Trying %s\n", path->name.c_str());
-		if ((unsigned int)(time(NULL) - path->lastused) < path->holdoff) continue;	// skip if we're not past the holdoff time
+		aprspath& path = beacon.aprs_paths[i];
+		if (debug.fh) printf("FH_DEBUG: Trying %s\n", path.name.c_str());
+		if ((unsigned int)(time(NULL) - path.lastused) < path.holdoff) continue;	// skip if we're not past the holdoff time
 
-		if (path->enablePin.enabled && !gpio::readPin(path->enablePin))	// skip if gpio says no
+		if (path.enablePin.enabled && !gpio::readPin(path.enablePin))	// skip if gpio says no
 		{
 			if (debug.fh) printf("FH_DEBUG: Path disabled via GPIO.\n");
 			continue;
 		}
 
-		if (path->proto == APRS_IS) {		// try immediately if this is an internet path
+		if (path.proto == APRS_IS) {		// try immediately if this is an internet path
 			if (send_pos_report(path)) {
 				return i;
 			} else continue;		// didn't work, try the next path
 		}
 
-		if (path->sat.compare("") != 0) {	// if the user specified a sat for this path...
-			if (is_visible(path->sat, path->min_ele)) {
-				if (debug.fh) printf("FH_DEBUG: %s is visible\n", path->sat.c_str()); // sat is visible, keep going.
+		if (path.sat.compare("") != 0) {	// if the user specified a sat for this path...
+			if (is_visible(path.sat, path.min_ele)) {
+				if (debug.fh) printf("FH_DEBUG: %s is visible\n", path.sat.c_str()); // sat is visible, keep going.
 			} else {
-				if (debug.fh) printf("FH_DEBUG: %s not visible\n", path->sat.c_str());
+				if (debug.fh) printf("FH_DEBUG: %s not visible\n", path.sat.c_str());
 				continue;			// skip this path is this sat isn't visible
 			}
 		}
 
-		if (!tune_radio(path)) continue;		// tune radio. skip if we can't tune this freq
+		if (!tune_radio(path.freq, path.mode)) continue;		// tune radio. skip if we can't tune this freq
 		send_pos_report(path);					// passed all the tests. send a beacon.
-		if (path->proto == HF_AX25) sleep(10);	// give hf packet time to transmit
-		if (path->proto != VHF_AX25) return i;		// don't bother listening for a digi if this isn't vhf.
+		if (path.proto == HF_AX25) sleep(10);	// give hf packet time to transmit
+		if (path.proto != VHF_AX25) return i;		// don't bother listening for a digi if this isn't vhf.
 
 		if (!wait_for_digi()) {		// probably didn't get digi'd.
-			if (!path->retry) continue;		// move on to the next one if we aren't allowed to retry here
+			if (!path.retry) continue;		// move on to the next one if we aren't allowed to retry here
 			if (debug.fh) printf("FH_DEBUG: Retrying\n");
-			if (!tune_radio(path)) continue;	// just in case user is messing with radio when we want to retry
+			if (!tune_radio(path.freq, path.mode)) continue;	// just in case user is messing with radio when we want to retry
 			send_pos_report(path);				// try again
 			if (wait_for_digi()) return i;	// must have worked this time
 		} else {
@@ -189,7 +189,7 @@ int sendBeacon() {
 		set_radio_freq(radio_freq);				// return radio to previous frequency
 		set_radio_mode(radio_mode);				// return radio to previous mode
 	}
-	else if (path != 0) tune_radio(&beacon.aprs_paths[0]);
+	else if (path != 0) tune_radio(beacon.aprs_paths[0].freq, beacon.aprs_paths[0].mode);
 
 	if (path != -1) beacon.aprs_paths[path].success++;	// update stats
 

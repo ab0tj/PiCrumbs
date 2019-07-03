@@ -6,8 +6,8 @@ using namespace std;
 #ifndef __BEACON_DEF
 #define __BEACON_DEF
 // INCLUDES
-#include <rigclass.h>
 #include <vector>
+#include <rigclass.h>
 #include "gpio.h"
 
 // ENUMS
@@ -16,8 +16,8 @@ enum PathType { VHF_AX25 = 0, HF_AX25 = 1, APRS_IS = 2, PSK63 = 3, PSKAndAX25 = 
 // STRUCTS
 struct aprspath {
 	string name;							// User-defined path name
-	freq_t freq;							// frequency in hz
-	rmode_t mode;							// FM, USB, LSB, PKTFM, etc.
+	freq_t freq;							// frequency of this path
+	rmode_t mode;							// mode of this path
 	string sat;								// sat name to look up with PREDICT
 	unsigned char min_ele;					// minimum elevation of sat before trying to use it
 	PathType proto;							// APRS protocol
@@ -60,6 +60,6 @@ struct BeaconStruct
 };
 
 // FUNCTIONS
-bool send_pos_report(aprspath*);
+bool send_pos_report(aprspath&);
 int sendBeacon();
 #endif

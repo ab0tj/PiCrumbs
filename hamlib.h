@@ -8,10 +8,9 @@ using namespace std;
 
 // INCLUDES
 #include <rigclass.h>
-#include "beacon.h"
 
 // FUNCTIONS
-bool tune_radio(aprspath*);
+bool tune_radio(freq_t, rmode_t);
 freq_t get_radio_freq();
 rmode_t get_radio_mode();
 bool set_radio_freq(freq_t);
