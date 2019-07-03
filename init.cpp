@@ -221,12 +221,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	gpio::enabled = readconfig.GetBoolean("gpio", "enable", false);
 	gpio::hf_en.pin = readconfig.GetInteger("gpio", "hf_en_pin", 65536);
 	gpio::hf_en.pullup = readconfig.GetBoolean("gpio", "hf_en_pullup", false);
-	gpio::hf_en.type = wiringPi;
 	gpio::vhf_en.pin = readconfig.GetInteger("gpio", "vhf_en_pin", 65536);
 	gpio::vhf_en.pullup = readconfig.GetBoolean("gpio", "vhf_en_pullup", false);
-	gpio::vhf_en.type = wiringPi;
 	gpio::psk_ptt.pin = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
-	gpio::psk_ptt.type = wiringPi;
 	if (gpio::enabled) gpio::init();
 
  // radio control config

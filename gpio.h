@@ -8,15 +8,12 @@ using namespace std;
 
 #include <string>
 
-enum GpioPinType { wiringPi, mcp23017 };
-
 struct GpioPin
 {
     bool enabled;
     int pin;
     bool pullup;
     bool active_low;
-    GpioPinType type;
 };
 
 namespace gpio

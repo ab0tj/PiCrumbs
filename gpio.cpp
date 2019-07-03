@@ -24,40 +24,25 @@ namespace gpio
 			p.active_low = true;
 		}
 
-		if (p.type == wiringPi)
-		{
-			if (mode == OUTPUT) digitalWrite(p.pin, p.active_low ? HIGH : LOW);
-			pinMode(p.pin, mode);
-			pullUpDnControl(p.pin, p.pullup ? PUD_UP : PUD_OFF);
-		}
+		if (mode == OUTPUT) setPin(p, false);
+		pinMode(p.pin, mode);
+		pullUpDnControl(p.pin, p.pullup ? PUD_UP : PUD_OFF);
 	}
 
 	void setPin(GpioPin p, bool val)	// set GPIO pin to the requested value
 	{
-		if (p.enabled) return;
-
-		if (p.type == wiringPi)
-		{
-			if (val)
-			{
-				digitalWrite(p.pin, p.active_low ? LOW : HIGH);
-			}
-			else digitalWrite(p.pin, p.active_low ? HIGH : LOW);
-		}
+		if (!p.enabled) return;
+		val ^= p.active_low;			// invert if active low
+		digitalWrite(p.pin, val);
 	}
 
 	bool readPin(GpioPin p)
 	{
+		bool val;
 		if (!p.enabled) return false;
-
-		if (p.type == wiringPi)
-		{
-			int val = digitalRead(p.pin);
-			if ((p.active_low && val == LOW) || (!p.active_low && val == HIGH)) return true;
-			return false;
-		}
-
-		return false;
+		val = digitalRead(p.pin);
+		val ^= p.active_low;
+		return val;
 	}
 
 	void init()
