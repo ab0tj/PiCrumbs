@@ -18,14 +18,9 @@ struct GpioPin
 
 namespace gpio
 {
-    bool check_path(int);
     int get_temp();
-    void init();
+    void initPin(GpioPin&, int);
     void setPin(GpioPin, bool);
     bool readPin(GpioPin);
-    extern bool enabled;			    // can we use gpio pins
-    extern GpioPin hf_en;			    // gpio pin for hf enable
-    extern GpioPin vhf_en;			    // gpio pin for vhf enable
-    extern GpioPin psk_ptt;            // gpio pin to use for psk ptt
 };
 #endif

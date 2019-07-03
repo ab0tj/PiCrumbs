@@ -8,6 +8,7 @@
 #include <vector>
 #include <rigclass.h>
 #include <curl/curl.h>
+#include <wiringPi.h>
 #include "INIReader.h"
 #include "init.h"
 #include "version.h"
@@ -21,6 +22,7 @@
 #include "console.h"
 #include "tnc.h"
 #include "predict.h"
+#include "psk.h"
 
 extern BeaconStruct beacon;
 extern ConsoleStruct console;
@@ -161,7 +163,6 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (debug.verbose) printf("PiCrumbs %s\n\n", VERSION);
 
 // CONFIG FILE PARSING
-
 	INIReader readconfig(configfile);	// read the config ini
 
 	if (readconfig.ParseError() < 0) {	// if we couldn't parse the config
@@ -218,14 +219,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
  // gpio config
-	gpio::enabled = readconfig.GetBoolean("gpio", "enable", false);
-	gpio::hf_en.pin = readconfig.GetInteger("gpio", "hf_en_pin", 65536);
-	gpio::hf_en.pullup = readconfig.GetBoolean("gpio", "hf_en_pullup", false);
-	gpio::vhf_en.pin = readconfig.GetInteger("gpio", "vhf_en_pin", 65536);
-	gpio::vhf_en.pullup = readconfig.GetBoolean("gpio", "vhf_en_pullup", false);
-	gpio::psk_ptt.pin = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
-	if (gpio::enabled) gpio::init();
-
+	pskPttPin.pin = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
+	if (pskPttPin.pin < 65536) gpio::initPin(pskPttPin, OUTPUT);
  // radio control config
 	hamlib.enabled = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
@@ -240,10 +235,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	http.proxy_port = readconfig.GetInteger("aprsis", "proxy_port", 1080);
 	http.user = readconfig.Get("aprsis", "user", beacon.mycall);
 	http.pass = readconfig.Get("aprsis", "pass", "-1");
+
  // path config
 	unsigned int pathidx = 1;
 	stringstream pathsect;
 	pathsect << "path" << "1";
+
 	map<string, rmode_t> modemap;
 	modemap["FM"] = RIG_MODE_FM;
 	modemap["AM"] = RIG_MODE_AM;
@@ -263,7 +260,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.mode = modemap[readconfig.Get(path_s, "mode", "FM")];
 		thispath.sat = readconfig.Get(path_s, "sat", "");
 		thispath.min_ele = readconfig.GetInteger(path_s, "min_ele", 0);
-		thispath.proto = readconfig.GetInteger(path_s, "proto", 0);
+		thispath.proto = (PathType)readconfig.GetInteger(path_s, "proto", 0);
 		thispath.psk_freq = readconfig.GetInteger(path_s, "psk_freq", 2100);
 		thispath.psk_vol = readconfig.GetInteger(path_s, "psk_vol", 100);
 		if (thispath.proto == 2) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used
@@ -271,6 +268,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
 		thispath.comment = readconfig.Get(path_s, "comment", "");
 		thispath.usePathComment = readconfig.HasValue(path_s, "comment");
+		thispath.enablePin.pin = readconfig.GetInteger(path_s, "enablepin", 65536);
+		thispath.enablePin.pullup = readconfig.GetBoolean(path_s, "pullup", false);
+		if (thispath.enablePin.pin < 65536) gpio::initPin(thispath.enablePin, INPUT);
 		thispath.attempt = 0;
 		thispath.success = 0;
 		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater

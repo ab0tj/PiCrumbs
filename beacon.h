@@ -8,27 +8,32 @@ using namespace std;
 // INCLUDES
 #include <rigclass.h>
 #include <vector>
+#include "gpio.h"
+
+// ENUMS
+enum PathType { VHF_AX25 = 0, HF_AX25 = 1, APRS_IS = 2, PSK63 = 3, PSKAndAX25 = 4 };
 
 // STRUCTS
 struct aprspath {
-	string name;						// User-defined path name
-	freq_t freq;						// frequency in hz
-	rmode_t mode;						// FM, USB, LSB, PKTFM, etc.
-	string sat;							// sat name to look up with PREDICT
-	unsigned char min_ele;				// minimum elevation of sat before trying to use it
-	unsigned char proto;				// packet protocol: 0 = 1200 baud, 1 = 300 baud, 2 = aprs-is, 3 = psk63, 4 = alternate 300bd/psk63
-	bool last_psk;						// did we use psk last time?
-	bool retry;							// try again before moving on?
-	vector<string> pathcalls;			// path callsigns
-	vector<char> pathssids;				// path ssids
-	unsigned int holdoff;				// wait at least this many seconds before reusing this path
-	time_t lastused;					// last time we sent a packet on this path
-	unsigned int attempt;				// number of times we have tried to use this path
-	unsigned int success;				// number of times we sucessfully sent a beacon on this path
-	unsigned int psk_freq;				// psk63 audio frequency
-	unsigned int psk_vol;				// psk63 volume;
-	string comment;						// text to send in comment field
-	bool usePathComment;				// true = use this comment instead of default
+	string name;							// User-defined path name
+	freq_t freq;							// frequency in hz
+	rmode_t mode;							// FM, USB, LSB, PKTFM, etc.
+	string sat;								// sat name to look up with PREDICT
+	unsigned char min_ele;					// minimum elevation of sat before trying to use it
+	PathType proto;							// APRS protocol
+	bool last_psk;							// did we use psk last time?
+	bool retry;								// try again before moving on?
+	vector<string> pathcalls;				// path callsigns
+	vector<char> pathssids;					// path ssids
+	unsigned int holdoff;					// wait at least this many seconds before reusing this path
+	time_t lastused;						// last time we sent a packet on this path
+	unsigned int attempt;					// number of times we have tried to use this path
+	unsigned int success;					// number of times we sucessfully sent a beacon on this path
+	unsigned int psk_freq;					// psk63 audio frequency
+	unsigned int psk_vol;					// psk63 volume;
+	string comment;							// text to send in comment field
+	bool usePathComment;					// true = use this comment instead of default
+	GpioPin enablePin;						// GPIO pin to check to see if path is enabled
 };
 
 struct BeaconStruct

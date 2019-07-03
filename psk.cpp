@@ -4,6 +4,28 @@
 #include <sstream>
 #include <cstring>
 #include <iomanip>
+#include <vector>
+#include <stdint.h>
+#include <stdio.h>
+
+GpioPin pskPttPin;
+
+// CLASSES
+class SampleGenerator {
+	vector<int8_t> sine;
+	vector<float> cosine;
+	unsigned int samples;
+	unsigned int pos;
+	char phase;
+	unsigned int center;
+  public:
+	void init(unsigned int, unsigned char, unsigned int, unsigned char, float);
+	void swap_phase();
+	int8_t get_next();
+	int8_t get_next_cos(unsigned int);
+	unsigned int samples_per_baud;
+	unsigned int samples_per_seg;
+};
 
 int gcd(int a, int b) {
   int c;

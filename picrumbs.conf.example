@@ -41,15 +41,7 @@ baud = 115200
 
 ; GPIO Settings
 [gpio]
-enable = false
-; pins: wiringPi numbering, negative for active low
-; hf_en: switch to enable or disable HF transmission
-hf_en_pin = 5
-; set pullup to true to enable the gpio's internal pullup resistor
-hf_en_pullup = true;
-; vhf_en: switch to enable or disable VHF transmission
-vhf_en_pin = 6
-vhf_en_pullup = true;
+; wiringPi numbering, negative for active low
 ; psk_ptt: gpio pin to use for PTT while transmitting PSK63
 psk_ptt_pin = -7
 
@@ -136,6 +128,12 @@ via = WIDE1-1,WIDE2-1
 holdoff = 10
 ; comment: if included, this replaces the default beacon comment text for this path only
 comment = 2M Path
+; enablepin: GPIO pin (wiringPi numbering) to check to see if this path is enabled
+; this could be hooked up to a switch, for example. negative pin number means active low
+; if not set, gpio will not be checked
+enablepin = 6
+; pullup: set to true to enable the internal pullup on the enable gpio pin
+pullup = true
 
 [path2]
 ; aprs-is path
@@ -146,6 +144,8 @@ proto = 2
 freq = 10147600
 mode = USB
 proto = 4
+enablepin = 5
+pullup = true
 ; no comment here, to increase chances of getting through
 comment =
 ; See here for PSK63 info: http://wa8lmf.net/APRS_PSK63/
