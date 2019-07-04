@@ -68,7 +68,7 @@ namespace gpio
 	Led::~Led()
 	{
 		delete greenPin;
-		if (biColor) delete redPin;
+		delete redPin;
 	}
 
 	void Led::setColor(LedColor color)

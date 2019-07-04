@@ -22,6 +22,11 @@ baud = 9600
 ; GPS (using GPSd)
 [gps]
 enable = true
+; led_pin: gpio pin to use for status LED (green)
+led_pin = 12
+; led_pin2: gpio pin for red status LED 
+; (optional even if led_pin is set, but does nothing if led_pin is not set)
+led_pin2 = -13
 
 ; Radio Serial Port
 [radio]
@@ -80,6 +85,9 @@ sb_turn_slope = 255
 temp_file = 
 ; temp_f: temperature units. false for C, true for F
 temp_f = false
+; status LED, same as GPS LED.
+; led_pin =
+; led_pin2 =
 
 [predict]
 ; PREDICT path, leave blank to disable
