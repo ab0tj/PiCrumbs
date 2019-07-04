@@ -90,6 +90,8 @@ temp_f = false
 ; led_pin2 =
 
 [predict]
+; PiCrumbs uses PREDICT to check satellite elevation.
+; https://www.qsl.net/kd2bd/predict.html
 ; PREDICT path, leave blank to disable
 path = 
 ; tlefile: path to where PREDICT can find TLE satellite info
@@ -116,9 +118,9 @@ pass = -1
 ;
 ; you can specify multiple [path*] sections here. each will be tried, in order.
 ; if your station is not repeated by a digi, the next path will be tried.
-; only the last path should be used for HF, there are few or no digis on HF.
-; the last path (or single path) will not be checked to see if we were repeated.
-; you can also specify an internet path, to use with a tethered cell phone, etc.
+; only the last path should be used for HF, as there is no way to know if a HF path worked.
+; the last path (or a single path) will not be checked to see if we were repeated.
+; you can also specify an internet path to use with a tethered cell phone, etc.
 ; if the aprs servers cannot be contacted, we will move on to the next path.
 
 [path1]
@@ -126,7 +128,7 @@ pass = -1
 name = VHF
 ; freq: frequency to use for this APRS path, in Hz
 freq = 144390000
-; mode: mode to use for this path, eg. FM, USB, LSB, PKTFM
+; mode: hamlib mode name to use for this path, eg. FM, USB, LSB, PKTFM
 mode = FM
 ; sat: check with PREDICT to see if this satellite is overhead for this path
 ; leave this blank to disable this check
@@ -139,7 +141,6 @@ proto = 0
 ; retry: try a second time to send a packet on this path if a digi is not heard
 retry = true
 ; via: max of 8, PLEASE Google this subject before changing if you don't fully understand the effects.
-; YOU SHOULD NOT USE A PATH ON HF
 via = WIDE1-1,WIDE2-1
 ; holdoff: limit use of this path to at least this interval, in seconds.
 holdoff = 10
