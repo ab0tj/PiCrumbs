@@ -259,7 +259,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	modemap["PKTLSB"] = RIG_MODE_PKTLSB;
 
 	do {		// loop thru all paths in the config file
-		aprspath thispath;
+		aprspath thispath = aprspath();
 		string path_s = pathsect.str();
 		thispath.name = readconfig.Get(path_s, "name", path_s);
 		thispath.freq = readconfig.GetInteger(path_s, "freq", 144390000);
@@ -277,6 +277,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		tempInt = readconfig.GetInteger(path_s, "enablepin", 65536);
 		tempBool = readconfig.GetBoolean(path_s, "pullup", false);
 		if (tempInt < 65536) thispath.enablePin = new gpio::Pin(tempInt, INPUT, tempBool);
+		
 		thispath.attempt = 0;
 		thispath.success = 0;
 		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater
