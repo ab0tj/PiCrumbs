@@ -13,6 +13,7 @@
 #include "init.h"
 #include "debug.h"
 #include "hamlib.h"
+#include "psk.h"
 
 extern BeaconStruct beacon;
 extern ConsoleStruct console;
@@ -20,6 +21,9 @@ extern TncStruct tnc;
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
 	if (debug.verbose) printf("\nCleaning up.\n");
+	delete beacon.led;
+	for (uint i=0; i < beacon.aprs_paths.size(); i++) delete beacon.aprs_paths[i].enablePin;
+	delete pskPttPin;
 	close(tnc.vhf_iface);
 	close(tnc.hf_iface);
 	close(console.iface);

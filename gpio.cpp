@@ -36,6 +36,11 @@ namespace gpio
 		if (debug.verbose) printf("Initialized GPIO pin %d (%sput, active %s, pullup %s)\n", pin, mode == OUTPUT ? "out" : "in", active_low ? "low" : "high", pullup ? "on" : "off");
 	}
 
+	Pin::~Pin()
+	{
+		pinMode(pin, INPUT);
+	}
+
 	void Pin::set(bool val)	// set GPIO pin to the requested value
 	{
 		val ^= active_low;			// invert if active low
@@ -48,6 +53,43 @@ namespace gpio
 		val = digitalRead(pin);
 		val ^= active_low;
 		return val;
+	}
+
+	Led::Led(int pin1, int pin2)
+	{
+		greenPin = new Pin(pin1, OUTPUT, false);
+		if (pin2 < 65536)
+		{
+			redPin = new Pin(pin2, OUTPUT, false);
+			biColor = true;
+		}
+	}
+
+	Led::~Led()
+	{
+		delete greenPin;
+		if (biColor) delete redPin;
+	}
+
+	void Led::setColor(LedColor color)
+	{
+		switch (color)
+		{
+			case LedOff:
+				greenPin->set(false);
+				if (biColor) redPin->set(false);
+				break;
+
+			case Red:
+				greenPin->set(false);
+				if (biColor) redPin->set(true);
+				break;
+
+			case Green:
+				greenPin->set(true);
+				if (biColor) redPin->set(false);
+				break;
+		}
 	}
 
 	void initExpander(ExpanderType type, int address, int pinBase)

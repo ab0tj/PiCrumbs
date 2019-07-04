@@ -1,6 +1,7 @@
 #include "gps.h"
 #include "console.h"
 #include "debug.h"
+#include <unistd.h>
 #include <pthread.h>
 #include <mutex>
 #include <libgpsmm.h>
@@ -16,6 +17,7 @@ namespace gps
 		bool gotFix;
 	}
 	bool enabled;
+	gpio::Led* led;
 
 	void* gps_thread(void*) {
 		gpsmm gps_rec("localhost", DEFAULT_GPSD_PORT);
@@ -67,6 +69,13 @@ namespace gps
 				if (console.disp) console_print("\x1B[4;6H\x1B[KNo Fix.");
 			}
 			posLock.unlock();
+
+			if (led != NULL)
+			{
+				led->setColor(currentPos.valid ? gpio::Green : gpio::Red);
+				usleep(30000);
+				led->setColor(gpio::LedOff);
+			}
 		}
 	}
 

@@ -186,6 +186,13 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		exit (EXIT_FAILURE);
 	}
 	if (debug.verbose) printf("Operating as %s-%i\n", beacon.mycall.c_str(), beacon.myssid);
+// gpio config
+	tempInt = readconfig.GetInteger("gpio", "expander", -1);
+	tempInt1 = strtol(readconfig.Get("gpio", "expander_addr", "-1").c_str(), NULL, 16);
+	tempInt2 = readconfig.GetInteger("gpio", "expander_pinbase", -1);
+	if (tempInt != -1) gpio::initExpander((gpio::ExpanderType)tempInt, tempInt1, tempInt2);
+	tempInt = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
+	if (tempInt < 65536) pskPttPin = new gpio::Pin(tempInt, OUTPUT, false);
  // tnc config
 	// vhf
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
@@ -198,6 +205,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
  // gps config
 	gps::enabled = readconfig.GetBoolean("gps", "enable", false);
+	tempInt1 = readconfig.GetInteger("gps", "led_pin", 65536);
+	tempInt2 = readconfig.GetInteger("gps", "led_pin2", 65536);
+	if (tempInt1 < 65536) gps::led = new gpio::Led(tempInt1, tempInt2);
  // console config
 	bool console_enable = readconfig.GetBoolean("console", "enable", false);
 	string console_port = readconfig.Get("console", "port", "/dev/ttyS4");
@@ -217,16 +227,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon.sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
 	beacon.sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
 	beacon.sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
+	tempInt1 = readconfig.GetInteger("beacon", "led_pin", 65536);
+	tempInt2 = readconfig.GetInteger("beacon", "led_pin2", 65536);
+	if (tempInt1 < 65536) beacon.led = new gpio::Led(tempInt1, tempInt2);
  // sat tracking config
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
- // gpio config
-	tempInt = readconfig.GetInteger("gpio", "expander", -1);
-	tempInt1 = strtol(readconfig.Get("gpio", "expander_addr", "-1").c_str(), NULL, 16);
-	tempInt2 = readconfig.GetInteger("gpio", "expander_pinbase", -1);
-	if (tempInt != -1) gpio::initExpander((gpio::ExpanderType)tempInt, tempInt1, tempInt2);
-	tempInt = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
-	if (tempInt < 65536) pskPttPin = new gpio::Pin(tempInt, OUTPUT, false);
  // radio control config
 	hamlib.enabled = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");

@@ -57,6 +57,7 @@ struct BeaconStruct
 	unsigned int static_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
     string temp_file;						// file to get temperature info from, blank to disable
     bool temp_f;							// temp units: false for C, true for F
+	gpio::Led* led;							// LED to display beacon status
 };
 
 // FUNCTIONS

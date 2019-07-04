@@ -6,6 +6,8 @@ using namespace std;
 #ifndef __GPS_INC
 #define __GPS_INC
 
+#include "gpio.h"
+
 struct GpsPos
 {
     bool valid;						// should we be sending beacons?
@@ -19,6 +21,7 @@ struct GpsPos
 namespace gps
 {
     extern bool enabled;
+    extern gpio::Led* led;
     void* gps_thread(void*);
     GpsPos getPos();
 }

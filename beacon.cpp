@@ -191,7 +191,12 @@ int sendBeacon() {
 	}
 	else if (path != 0) tune_radio(beacon.aprs_paths[0].freq, beacon.aprs_paths[0].mode);
 
-	if (path != -1) beacon.aprs_paths[path].success++;	// update stats
+	if (path != -1)
+	{
+		beacon.aprs_paths[path].success++;	// update stats
+		if (beacon.led != NULL) beacon.led->setColor(gpio::Green);
+	}
+	else if (beacon.led != NULL) beacon.led->setColor(gpio::Red);
 
 	if (debug.fh)
 	{
