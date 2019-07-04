@@ -122,7 +122,7 @@ int open_port(string name, string port, int baud, bool blocking, bool canon) {		
 }	// END OF 'open_port'
 
 void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
-	int tempInt;
+	int tempInt, tempInt1, tempInt2;
 	int tempBool;
 	string configfile = "/etc/picrumbs.conf";
 	HAMLIB_API::rig_set_debug(RIG_DEBUG_NONE);	// tell hamlib to STFU unless asked
@@ -221,7 +221,10 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
  // gpio config
-
+	tempInt = readconfig.GetInteger("gpio", "expander", -1);
+	tempInt1 = strtol(readconfig.Get("gpio", "expander_addr", "-1").c_str(), NULL, 16);
+	tempInt2 = readconfig.GetInteger("gpio", "expander_pinbase", -1);
+	if (tempInt != -1) gpio::initExpander((gpio::ExpanderType)tempInt, tempInt1, tempInt2);
 	tempInt = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
 	if (tempInt < 65536) pskPttPin = new gpio::Pin(tempInt, OUTPUT, false);
  // radio control config

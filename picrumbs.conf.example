@@ -42,6 +42,15 @@ baud = 115200
 ; GPIO Settings
 [gpio]
 ; wiringPi numbering, negative for active low
+; expander: set to enable a GPIO expander.
+; more info: http://wiringpi.com/extensions/i2c-mcp23008-mcp23017/
+; 0 = MCP23008, 1 = MCP23017
+expander =
+; expander_addr: I2C address of the expander, in hex
+expander_addr = 20
+; expander_pinbase: pin number offset for the expander pins
+; must be greater than 64. add to gpio pin numbers to use the expander
+expander_pinbase = 100
 ; psk_ptt: gpio pin to use for PTT while transmitting PSK63
 psk_ptt_pin = -7
 

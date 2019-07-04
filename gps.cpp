@@ -12,7 +12,8 @@ namespace gps
 	namespace
 	{
 		mutex currentPos_mutex;
-		GpsPos currentPos; 
+		GpsPos currentPos;
+		bool gotFix;
 	}
 	bool enabled;
 
@@ -25,7 +26,7 @@ namespace gps
 			return 0;
 		}
 
-		if (debug.verbose) printf("Waiting for GPS fix.\n");
+		if (debug.verbose) printf("Waiting for GPS fix...");
 
 		for (;;) {
 			struct gps_data_t* newdata;
@@ -44,6 +45,11 @@ namespace gps
 				currentPos.valid = false;
 				fprintf(stderr, "GPS read error.\n");
 			} else if (newdata->fix.mode > 1) {		// good fix
+				if (!gotFix)
+				{
+					gotFix = true;
+					if (debug.verbose) printf(" Ready!\n");
+				}
 				currentPos.valid = true;
 				if (newdata->set & LATLON_SET) {
 					currentPos.lat = newdata->fix.latitude;

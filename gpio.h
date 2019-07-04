@@ -15,7 +15,6 @@ namespace gpio
     class Pin
     {
         private:
-            bool enabled;
             int pin;
             bool active_low;
 
@@ -25,16 +24,7 @@ namespace gpio
             Pin(int, int, bool);
     };
 
-    struct GpioExpander
-    {
-        bool enabled;
-        int pinBase;
-        int address;
-        ExpanderType type;
-    };
-
-    extern GpioExpander expander;
-
     int get_temp();
+    void initExpander(ExpanderType, int, int);
 };
 #endif
