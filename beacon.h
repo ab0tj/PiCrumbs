@@ -33,7 +33,7 @@ struct aprspath {
 	unsigned int psk_vol;					// psk63 volume;
 	string comment;							// text to send in comment field
 	bool usePathComment;					// true = use this comment instead of default
-	GpioPin enablePin;						// GPIO pin to check to see if path is enabled
+	gpio::Pin* enablePin;					// GPIO pin to check to see if path is enabled
 };
 
 struct BeaconStruct

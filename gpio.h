@@ -8,19 +8,33 @@ using namespace std;
 
 #include <string>
 
-struct GpioPin
-{
-    bool enabled;
-    int pin;
-    bool pullup;
-    bool active_low;
-};
-
 namespace gpio
 {
+    enum ExpanderType { MCP23008 = 0, MCP23017 = 1 };
+
+    class Pin
+    {
+        private:
+            bool enabled;
+            int pin;
+            bool active_low;
+
+        public:
+            void set(bool);
+            bool read();
+            Pin(int, int, bool);
+    };
+
+    struct GpioExpander
+    {
+        bool enabled;
+        int pinBase;
+        int address;
+        ExpanderType type;
+    };
+
+    extern GpioExpander expander;
+
     int get_temp();
-    void initPin(GpioPin&, int);
-    void setPin(GpioPin, bool);
-    bool readPin(GpioPin);
 };
 #endif

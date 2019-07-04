@@ -10,9 +10,9 @@ using namespace std;
 #include "gpio.h"
 
 // VARS
-extern GpioPin pskPttPin;
+extern gpio::Pin* pskPttPin;
 
 // FUNCTIONS
-void send_psk_aprs(unsigned int, unsigned char, GpioPin, const char*, unsigned char, const char*, unsigned char, const char*);
+void send_psk_aprs(unsigned int, unsigned char, gpio::Pin*, const char*, unsigned char, const char*, unsigned char, const char*);
 
 #endif

@@ -122,6 +122,8 @@ int open_port(string name, string port, int baud, bool blocking, bool canon) {		
 }	// END OF 'open_port'
 
 void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
+	int tempInt;
+	int tempBool;
 	string configfile = "/etc/picrumbs.conf";
 	HAMLIB_API::rig_set_debug(RIG_DEBUG_NONE);	// tell hamlib to STFU unless asked
 
@@ -219,8 +221,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
  // gpio config
-	pskPttPin.pin = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
-	if (pskPttPin.pin < 65536) gpio::initPin(pskPttPin, OUTPUT);
+
+	tempInt = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
+	if (tempInt < 65536) pskPttPin = new gpio::Pin(tempInt, OUTPUT, false);
  // radio control config
 	hamlib.enabled = readconfig.GetBoolean("radio", "enable", "false");
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
@@ -268,9 +271,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.holdoff = readconfig.GetInteger(path_s, "holdoff", 0);
 		thispath.comment = readconfig.Get(path_s, "comment", "");
 		thispath.usePathComment = readconfig.HasValue(path_s, "comment");
-		thispath.enablePin.pin = readconfig.GetInteger(path_s, "enablepin", 65536);
-		thispath.enablePin.pullup = readconfig.GetBoolean(path_s, "pullup", false);
-		if (thispath.enablePin.pin < 65536) gpio::initPin(thispath.enablePin, INPUT);
+		tempInt = readconfig.GetInteger(path_s, "enablepin", 65536);
+		tempBool = readconfig.GetBoolean(path_s, "pullup", false);
+		if (tempInt < 65536) thispath.enablePin = new gpio::Pin(tempInt, INPUT, tempBool);
 		thispath.attempt = 0;
 		thispath.success = 0;
 		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater

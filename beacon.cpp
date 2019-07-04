@@ -95,13 +95,13 @@ bool send_pos_report(aprspath& path = beacon.aprs_paths[0]) {			// exactly what 
 		case APRS_IS:
 			return send_aprsis_http(beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, buff.str());
 		case PSK63:
-			if (pskPttPin.enabled) {
+			if (pskPttPin != NULL) {
 				send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				return true;
 			}
 			return false;	// can't send psk without gpio (yet)
 		case PSKAndAX25:
-			if (!path.last_psk && pskPttPin.enabled) {	// send psk
+			if (!path.last_psk && pskPttPin != NULL) {	// send psk
 				send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, beacon.mycall.c_str(), beacon.myssid, PACKET_DEST, 0, buff.str().c_str());
 				path.last_psk = true;
 			} else {	// send 300bd
@@ -133,7 +133,7 @@ int path_select_beacon() {		// try to send an APRS beacon
 		if (debug.fh) printf("FH_DEBUG: Trying %s\n", path.name.c_str());
 		if ((unsigned int)(time(NULL) - path.lastused) < path.holdoff) continue;	// skip if we're not past the holdoff time
 
-		if (path.enablePin.enabled && !gpio::readPin(path.enablePin))	// skip if gpio says no
+		if (path.enablePin != NULL && !path.enablePin->read())	// skip if gpio says no
 		{
 			if (debug.fh) printf("FH_DEBUG: Path disabled via GPIO.\n");
 			continue;
