@@ -219,6 +219,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon.symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
 	beacon.temp_file = readconfig.Get("beacon", "temp_file", "");
 	beacon.temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
+	beacon.adc_file = readconfig.Get("beacon", "adc_file", "");
+	beacon.adc_scale = atof(readconfig.Get("beacon", "adc_scale", "0").c_str());
 	beacon.static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	beacon.sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	beacon.sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);

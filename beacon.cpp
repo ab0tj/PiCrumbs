@@ -5,6 +5,7 @@
 #include <sstream>
 #include <fstream>
 #include <unistd.h>
+#include <string.h>
 #include "hamlib.h"
 #include "gpio.h"
 #include "http.h"
@@ -20,6 +21,7 @@ BeaconStruct beacon;
 extern ConsoleStruct console;
 
 int get_temp();
+float get_voltage();
 
 bool send_pos_report(aprspath& path = beacon.aprs_paths[0]) {			// exactly what it sounds like
 	stringstream buff;
@@ -67,7 +69,7 @@ bool send_pos_report(aprspath& path = beacon.aprs_paths[0]) {			// exactly what 
 	delete[] pos;
 
 	if (beacon.temp_file.compare("") != 0) {	// user specified a temp sensor is available
-		float t = get_temp();
+		int t = get_temp();
 		if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
 			buff << t;
 			if (beacon.temp_f) {
@@ -75,6 +77,16 @@ bool send_pos_report(aprspath& path = beacon.aprs_paths[0]) {			// exactly what 
 			} else {
 				buff << "C ";
 			}
+		}
+	}
+
+	if (beacon.adc_file.compare("") != 0)
+	{
+		float volts = get_voltage();
+		if (volts != -1)
+		{
+			buff << get_voltage();
+			buff << "V ";
 		}
 	}
 
@@ -237,13 +249,33 @@ int get_temp()	// get temperature from hwmon formatted file
 {
 	ifstream tempfile;
 	string line;
-	int temp = 0;
 	tempfile.open(beacon.temp_file.c_str());
-	if (!tempfile.is_open()) return -65535;		// return absurdly low value so we know it's invalid.
+	if (!tempfile.is_open()) 
+	{
+		fprintf(stderr, "Error opening temperature file: %s\n", strerror(errno));
+		return -65535;		// return absurdly low value so we know it's invalid.
+	}
 	getline(tempfile, line);
-	temp = atoi(line.c_str());
+	int temp = atoi(line.c_str());
 	if (beacon.temp_f) temp = 1.8*temp+32000;
 	temp /= 1000;
 	tempfile.close();
 	return temp;
+}
+
+float get_voltage()	// get voltage from adc
+{
+	ifstream adcfile;
+	string line;
+	adcfile.open(beacon.adc_file.c_str());
+	if (!adcfile.is_open())
+	{
+		fprintf(stderr, "Error opening ADC file: %s\n", strerror(errno));
+		return -1;		// can't have negative voltage...
+	}
+	getline(adcfile, line);
+	float volts = atoi(line.c_str());
+	volts *= beacon.adc_scale;
+	adcfile.close();
+	return volts;
 }
