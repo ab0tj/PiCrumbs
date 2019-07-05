@@ -38,7 +38,9 @@ void ax25address::decode() {					// transform ax25 address into plaintext
 
 void ax25address::encode() {					// transform plaintext data into ax25 address
 	char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces
-	memcpy(paddedcallsign, callsign.c_str(), strlen(callsign.c_str()));		// copy the shifted callsign into our padded container
+	int size = callsign.size();
+	if (size > 6) size = 6;
+	memcpy(paddedcallsign, callsign.c_str(), size);		// copy the shifted callsign into our padded container
 	for (int i=0;i<6;i++) {
 		paddedcallsign[i] <<= 1;		// shift all the chars in the input callsign
 	}

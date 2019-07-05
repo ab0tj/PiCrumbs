@@ -177,14 +177,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string call = readconfig.Get("station", "mycall", "N0CALL");	// parse the mycall config paramater
 	beacon.mycall = get_call(call);
 	beacon.myssid = get_ssid(call);
-	if (beacon.mycall.length() > 6) {
-		fprintf(stderr,"MYCALL: Station callsign must be 6 characters or less.\n");
-		exit (EXIT_FAILURE);
-	}
-	if (beacon.myssid < 0 or beacon.myssid > 15) {
-		fprintf(stderr,"MYCALL: Station SSID must be between 0 and 15.\n"); // TODO: We don't care about this if it doesn't need to go over-the-air.
-		exit (EXIT_FAILURE);
-	}
+	if (beacon.mycall.length() > 6) printf("WARNING: Station callsign too long for AX25. It will be truncated to 6 characters if used for packet paths.\n");
+	if (beacon.myssid > 15) printf("WARNING: SSID not valid for AX25 (it should be 0-15). Expect weirdness if used on packet paths.\n");
 	if (debug.verbose) printf("Operating as %s-%i\n", beacon.mycall.c_str(), beacon.myssid);
 // gpio config
 	tempInt = readconfig.GetInteger("gpio", "expander", -1);
@@ -220,7 +214,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon.temp_file = readconfig.Get("beacon", "temp_file", "");
 	beacon.temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
 	beacon.adc_file = readconfig.Get("beacon", "adc_file", "");
-	beacon.adc_scale = atof(readconfig.Get("beacon", "adc_scale", "0").c_str());
+	beacon.adc_scale = atof(readconfig.Get("beacon", "adc_scale", "1").c_str());
 	beacon.static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	beacon.sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	beacon.sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
@@ -305,7 +299,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 					fprintf(stderr,"VIA: Station callsign must be 6 characters or less.\n");
 					exit (EXIT_FAILURE);
 				}
-				if (this_ssid < 0 or beacon.myssid > 15) {
+				if (this_ssid < 0 or this_ssid > 15) {
 					fprintf(stderr,"VIA: Station SSID must be between 0 and 15.\n");
 					exit (EXIT_FAILURE);
 				}

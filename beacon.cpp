@@ -83,11 +83,7 @@ bool send_pos_report(aprspath& path = beacon.aprs_paths[0]) {			// exactly what 
 	if (beacon.adc_file.compare("") != 0)
 	{
 		float volts = get_voltage();
-		if (volts != -1)
-		{
-			buff << get_voltage();
-			buff << "V ";
-		}
+		if (volts != -1) buff << volts << "V ";
 	}
 
 	if (path.usePathComment)

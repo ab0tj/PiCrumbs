@@ -1,6 +1,6 @@
 ; Station Info
 [station]
-; mycall: callsign-ssid, callsign max 6 chars and ssid must be 0-15
+; mycall: callsign-ssid
 mycall = N0CALL-9
 
 ; 1200-baud TNC
@@ -28,7 +28,7 @@ led_pin = 12
 ; (optional even if led_pin is set, but does nothing if led_pin is not set)
 led_pin2 = -13
 
-; Radio Serial Port
+; Radio CAT control settings
 [radio]
 enable = false
 port = /dev/ttyS3
@@ -50,7 +50,7 @@ baud = 115200
 ; expander: set to enable a GPIO expander.
 ; more info: http://wiringpi.com/extensions/i2c-mcp23008-mcp23017/
 ; 0 = MCP23008, 1 = MCP23017
-expander =
+; expander = 1
 ; expander_addr: I2C address of the expander, in hex
 expander_addr = 20
 ; expander_pinbase: pin number offset for the expander pins
@@ -97,8 +97,8 @@ adc_scale = 0.01
 [predict]
 ; PiCrumbs uses PREDICT to check satellite elevation.
 ; https://www.qsl.net/kd2bd/predict.html
-; PREDICT path, leave blank to disable
-path = 
+; PREDICT binary path, leave blank to disable
+; path = /usr/local/bin/predict
 ; tlefile: path to where PREDICT can find TLE satellite info
 ; default is ~/.predict/predict.tle
 tlefile = /etc/predict.tle
