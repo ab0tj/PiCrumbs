@@ -37,6 +37,7 @@ namespace gps
 				posLock.lock();
 				currentPos.valid = false;
 				posLock.unlock();
+				if (led != NULL) led->setColor(gpio::Red);
 				if (debug.gps) printf("GPS_DEBUG: GPSd timeout.\n");
 				if (console.disp) console_print("\x1B[4;6H\x1B[KGPSd timeout.");
 				continue;
@@ -45,7 +46,10 @@ namespace gps
 			posLock.lock();
 			if ((newdata = gps_rec.read()) == NULL) {	// can't get gps info
 				currentPos.valid = false;
+				if (led != NULL) led->setColor(gpio::Red);
 				fprintf(stderr, "GPS read error.\n");
+				posLock.unlock();
+				continue;
 			} else if (newdata->fix.mode > 1) {		// good fix
 				if (!gotFix)
 				{
@@ -68,13 +72,24 @@ namespace gps
 				if (debug.gps) printf("GPS_DEBUG: No fix.\n");
 				if (console.disp) console_print("\x1B[4;6H\x1B[KNo Fix.");
 			}
+			bool valid = currentPos.valid;
 			posLock.unlock();
 
-			if (led != NULL)
+			if (led != NULL)	// Blink the led based on fix status
 			{
-				led->setColor(currentPos.valid ? gpio::Green : gpio::Red);
-				usleep(30000);
-				led->setColor(gpio::LedOff);
+				if (led->isBicolor())
+				{	// One red blink for invalid, one green blink for valid
+					led->setColor(valid ? gpio::Green : gpio::Red);
+					usleep(30000);
+					led->setColor(gpio::LedOff);
+				}
+				else
+				{	// Invalid = off with blink to show data received, valid = the opposite
+					led->setColor(valid ? gpio::LedOff : gpio::Green);
+					usleep(30000);
+					led->setColor(valid ? gpio::Green : gpio::LedOff);
+				}
+				
 			}
 		}
 	}

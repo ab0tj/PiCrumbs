@@ -35,6 +35,7 @@ namespace gpio
 
         public:
             void setColor(LedColor);
+            inline bool isBicolor() { return biColor; }
             Led(int, int);
             ~Led();
     };
