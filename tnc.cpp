@@ -1,7 +1,6 @@
 #include "tnc.h"
 #include <string>
 #include <cstring>
-#include <bitset>
 #include <vector>
 #include <cstdio>
 #include <unistd.h>
@@ -19,44 +18,29 @@ extern ConsoleStruct console;
 TncStruct tnc;
 string last_tx_packet;				// the last kiss frame that we sent
 
-void ax25address::decode() {					// transform ax25 address into plaintext
+void ax25address::decode() {		// transform ax25 address into plaintext
 	string incall = callsign;
 	callsign = "";
 	for (int i=0;i<6;i++) {
-		incall[i] >>= 1;		// shift this char to the right
+		incall[i] >>= 1;			// shift this char to the right
 		if (incall[i] != 0x20) callsign.append(1,incall[i]);
 	}
-	bitset<8> ssidbits(ssid);
-	last = ssidbits.test(0);
-	hbit = ssidbits.test(7);
-	ssidbits.reset(7);
-	ssidbits.reset(6);
-	ssidbits.reset(5);
-	ssidbits >>= 1;
-	ssid = ssidbits.to_ulong();
+	last = ssid & 0x01;
+	hbit = ssid & 0x80;
+	ssid &= 0x1f;
+	ssid >>= 1;
 } // END OF 'ax25address::decode'
 
 void ax25address::encode() {					// transform plaintext data into ax25 address
-	char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces
-	int size = callsign.size();
-	if (size > 6) size = 6;
-	memcpy(paddedcallsign, callsign.c_str(), size);		// copy the shifted callsign into our padded container
-	for (int i=0;i<6;i++) {
-		paddedcallsign[i] <<= 1;		// shift all the chars in the input callsign
-	}
-	callsign = paddedcallsign;
-	bitset<8> ssidbits(ssid);
-	ssidbits <<= 1;			// shift ssid
-	ssidbits.set(0,last);
-	ssidbits.set(5,true);
-	ssidbits.set(6,true);
-	ssidbits.set(7,hbit);
-	ssid = ssidbits.to_ulong();
+	callsign = encode_ax25_callsign(callsign.c_str());
+	ssid = encode_ax25_ssid(ssid, hbit, last);
 }	// END OF 'ax25address::encode'
 
 string encode_ax25_callsign(const char* callsign) {		// pad a callsign with spaces to 6 chars and shift chars to the left
 	char paddedcallsign[] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00};	// start with a string of spaces
-	memcpy(paddedcallsign, callsign, strlen(callsign));		// copy the shifted callsign into our padded container
+	int size = strlen(callsign);
+	if (size > 6) size = 6;
+	memcpy(paddedcallsign, callsign, size);		// copy the shifted callsign into our padded container
 	for (int i=0;i<6;i++) {
 			paddedcallsign[i] <<= 1;		// shift all the chars in the input callsign
 		}
@@ -88,12 +72,11 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 			}
 		}
 		buff.append(1, encode_ax25_ssid(source_ssid, false, false));	// path to follow, don't end the address field just yet
-		for (unsigned int i=0;i<(via.size()-1);i++) {					// loop thru all via calls except the last
+		uint vias = via.size() - 1;
+		for (unsigned int i=0;i<=vias;i++) {					// loop thru all via calls
 			buff.append(encode_ax25_callsign(via[i].c_str()));			// add this via callsign
-			buff.append(1, encode_ax25_ssid(via_ssids[i], via_hbits[i], false)); // add this via ssid
+			buff.append(1, encode_ax25_ssid(via_ssids[i], via_hbits[i], i == vias)); // add this via ssid
 		}
-		buff.append(encode_ax25_callsign(via[via.size()-1].c_str()));	// finally made it to the last via call
-		buff.append(1,encode_ax25_ssid(via_ssids[via_ssids.size()-1], via_hbits[via_hbits.size()-1], true));	// end the address field
 	}
 	
 	buff.append("\x03\xF0");									// add control and pid bytes (ui frame)
@@ -191,7 +174,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		if (console.disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
-	if ((source.callsign.compare(beacon.mycall) == 0) && source.ssid == beacon.myssid) {
+	if ((source.callsign.compare(beacon.mycall.substr(0,6)) == 0) && (source.ssid == beacon.myssid || beacon.myssid > 15)) {
 		if (debug.tnc) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", beacon.last_heard);
 		beacon.last_heard = 0;	// clear last_heard if we were successfully digi'd.
 	}
@@ -199,13 +182,13 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 
 void* tnc_thread(void*) {	// monitor the vhf data stream
 	string buff = "";
-	unsigned char * data = new unsigned char[1];
+	char c;
 	bool escape = false;
 
 	for (;;) {
-		read(tnc.vhf_iface, data, 1);		// read the data
+		read(tnc.vhf_iface, &c, 1);		// read the data
 		if (escape) {
-			switch (data[0]) {
+			switch (c) {
 				case 0xDC:
 					buff.append(1, 0xC0);
 					break;
@@ -217,7 +200,7 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 			}
 			escape = false;
 		} else {
-			switch (data[0]) {		// process kiss bytes
+			switch (c) {		// process kiss bytes
 				case 0xC0: 				// data is terminated with a FEND.
 					if (buff.length() > 20) {		// don't bother if the buffer is smaller than a valid kiss frame
 						process_ax25_frame(buff);
@@ -230,12 +213,10 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 				case 0x00:			// control
 					break;
 				default:			// this wasn't a special char so just add it to the buffer.
-					buff.append(1, data[0]);
+					buff.append(1, c);
 					break;
 			}
 		}
 	}
-
-	delete[] data;
 	return 0;
 } // END OF 'tnc_thread'
