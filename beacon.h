@@ -36,33 +36,33 @@ struct aprspath {
 	gpio::Pin* enablePin;					// GPIO pin to check to see if path is enabled
 };
 
-struct BeaconStruct
+namespace beacon
 {
-	string mycall;							// callsign we're operating under, excluding ssid
-	unsigned char myssid;					// ssid of this station (stored as a number, not ascii)
-	bool compress_pos;						// should we compress the aprs packet?
-	char symbol_table;						// which symbol table to use
-	char symbol_char;						// which symbol to use from the table
-	string comment;							// comment to send along with aprs packets
-	vector<aprspath> aprs_paths;			// APRS paths to try, in order of preference
-	unsigned int last_heard;				// time since we heard our call on vhf
-	bool radio_retune;						// should we retune the radio after beaconing?
-	unsigned short int sb_low_speed;		// SmartBeaconing low threshold, in mph
-	unsigned int sb_low_rate;				// SmartBeaconing low rate
-	unsigned short int sb_high_speed;		// SmartBeaconing high threshold, in mph
-	unsigned int sb_high_rate;				// SmartBeaconing high rate
-	unsigned short int sb_turn_min;			// SmartBeaconing turn minimum (deg)
-	unsigned short int sb_turn_time;		// SmartBeaconing turn time (minimum)
-	unsigned short int sb_turn_slope;		// SmartBeaconing turn slope
-	unsigned int static_rate;				// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
-    string temp_file;						// file to get temperature info from, blank to disable
-    bool temp_f;							// temp units: false for C, true for F
-	string adc_file;						// file to get ADC value from, blank to disable
-	float adc_scale;						// ADC scaling value
-	gpio::Led* led;							// LED to display beacon status
+	extern string mycall;					// callsign we're operating under, excluding ssid
+	extern unsigned char myssid;			// ssid of this station (stored as a number, not ascii)
+	extern bool compress_pos;				// should we compress the aprs packet?
+	extern char symbol_table;				// which symbol table to use
+	extern char symbol_char;				// which symbol to use from the table
+	extern string comment;					// comment to send along with aprs packets
+	extern vector<aprspath> aprs_paths;		// APRS paths to try, in order of preference
+	extern unsigned int last_heard;			// time since we heard our call on vhf
+	extern bool radio_retune;				// should we retune the radio after beaconing?
+	extern unsigned short int sb_low_speed;	// SmartBeaconing low threshold, in mph
+	extern unsigned int sb_low_rate;		// SmartBeaconing low rate
+	extern unsigned short int sb_high_speed; // SmartBeaconing high threshold, in mph
+	extern unsigned int sb_high_rate;		// SmartBeaconing high rate
+	extern unsigned short int sb_turn_min;	// SmartBeaconing turn minimum (deg)
+	extern unsigned short int sb_turn_time;	// SmartBeaconing turn time (minimum)
+	extern unsigned short int sb_turn_slope; // SmartBeaconing turn slope
+	extern unsigned int static_rate;		// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+    extern string temp_file;				// file to get temperature info from, blank to disable
+    extern bool temp_f;						// temp units: false for C, true for F
+	extern string adc_file;					// file to get ADC value from, blank to disable
+	extern float adc_scale;					// ADC scaling value
+	extern gpio::Led* led;					// LED to display beacon status
+
+	bool send_pos_report(aprspath&);
+	int send();
 };
 
-// FUNCTIONS
-bool send_pos_report(aprspath&);
-int sendBeacon();
 #endif

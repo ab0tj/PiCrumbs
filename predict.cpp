@@ -6,9 +6,6 @@
 #include "gps.h"
 #include "debug.h"
 
-// GLOBAL VARS
-extern BeaconStruct beacon;
-
 // VARS
 PredictStruct predict;
 
@@ -19,7 +16,7 @@ bool is_visible(string sat, int min_ele) {		// use PREDICT to figure out if this
 	qthfile.open("/tmp/picrumbs.qth", ios::trunc);		// PREDICT doesn't seem to be able to take a location via command line, so we need to build a "qth file" based on the current position.
 	qthfile.precision(6);
 	qthfile << fixed;
-	qthfile << beacon.mycall << '\n';
+	qthfile << beacon::mycall << '\n';
 	qthfile << ' ' << gps.lat << '\n';
 	qthfile << ' ' << -gps.lon << '\n';	// predict expects negative values for east
 	qthfile << ' ' << gps.alt << '\n';

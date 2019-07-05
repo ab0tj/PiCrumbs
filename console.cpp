@@ -9,7 +9,6 @@
 #include "hamlib.h"
 
 ConsoleStruct console;
-extern BeaconStruct beacon;
 
 int console_print(string s) {
 	return write(console.iface, s.c_str(), s.length());
@@ -17,8 +16,8 @@ int console_print(string s) {
 
 string build_prompt() {
 	stringstream ss;
-	ss << beacon.mycall;
-	if (beacon.myssid > 0) ss << '-' << (int)beacon.myssid;
+	ss << beacon::mycall;
+	if (beacon::myssid > 0) ss << '-' << (int)beacon::myssid;
 	ss << "> ";
 	return ss.str();
 }
@@ -29,8 +28,8 @@ void show_pathstats(bool align) {
 
 	stringstream buff_out;
 	
-	for (unsigned int i=0; i < beacon.aprs_paths.size(); i++) {		// loop thru all paths
-		aprspath* path = &beacon.aprs_paths[i];
+	for (unsigned int i=0; i < beacon::aprs_paths.size(); i++) {		// loop thru all paths
+		aprspath* path = &beacon::aprs_paths[i];
 		buff_out << path->name << ": " << path->success;
 		
 		if (path->attempt > 0) {
@@ -77,14 +76,14 @@ void* console_thread(void*) {	// handle console interaction
 		else if (param.compare("bcnnow") == 0) {
 			console_print("Sending beacon...\r\n");
 			
-			int path = sendBeacon();
+			int path = beacon::send();
 			if (path == -1) {
 				console_print("Beacon path selection failed.\r\n");
 			} else {
 				buff_out << "Beacon successfully sent on path " << path + 1 << '.';
 				console_print(buff_out.str() + "\r\n");
 			}
-			if (path != 0) tune_radio(beacon.aprs_paths[0].freq, beacon.aprs_paths[0].mode);	// retune if necessary
+			if (path != 0) tune_radio(beacon::aprs_paths[0].freq, beacon::aprs_paths[0].mode);	// retune if necessary
 		}
 		
 		else if (param.compare("mycall") == 0) {
@@ -96,14 +95,14 @@ void* console_thread(void*) {	// handle console interaction
 				if ((temp_call.length() > 6) || ((temp_ssid < 0) || (temp_ssid > 15))) {
 					console_print("Error: Invalid callsign or ssid.\r\n");
 				} else {
-					beacon.mycall = temp_call;
-					beacon.myssid = temp_ssid;
+					beacon::mycall = temp_call;
+					beacon::myssid = temp_ssid;
 					console_print("OK\r\n");
 					prompt = build_prompt();
 				}
 			} else {		// user is just asking
-				buff_out << "mycall: " << beacon.mycall;
-				if (beacon.myssid != 0) buff_out << '-' << (int)beacon.myssid;
+				buff_out << "mycall: " << beacon::mycall;
+				if (beacon::myssid != 0) buff_out << '-' << (int)beacon::myssid;
 				console_print(buff_out.str() + "\r\n");
 			}
 		}
@@ -117,17 +116,17 @@ void* console_thread(void*) {	// handle console interaction
 			buff_in >> param;
 			if (param.compare("")) {	// compare returns 0 on match
 				if (param.length() == 1) {
-					beacon.symbol_char = param.c_str()[0];
+					beacon::symbol_char = param.c_str()[0];
 					console_print("OK\r\n");
 				} else if (param.length() == 2) {
-					beacon.symbol_table = param.c_str()[0];
-					beacon.symbol_char = param.c_str()[1];
+					beacon::symbol_table = param.c_str()[0];
+					beacon::symbol_char = param.c_str()[1];
 					console_print("OK\r\n");
 				} else {
 					console_print("Error: Symbol must be one or two characters.");
 				}
 			} else {
-				buff_out << "symbol: " << beacon.symbol_table << beacon.symbol_char;
+				buff_out << "symbol: " << beacon::symbol_table << beacon::symbol_char;
 				console_print(buff_out.str() + "\r\n");
 			}
 		}
@@ -136,10 +135,10 @@ void* console_thread(void*) {	// handle console interaction
 			param = "";
 			getline(buff_in, param);	// comment can have spaces
 			if (param.compare("")) {	// compare returns 0 on match
-				beacon.comment = trim(param);
+				beacon::comment = trim(param);
 				console_print("OK\r\n");
 			} else {		// user is just asking
-				console_print("comment: " + beacon.comment + "\r\n");
+				console_print("comment: " + beacon::comment + "\r\n");
 			}
 		}
 		

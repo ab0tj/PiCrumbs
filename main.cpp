@@ -15,13 +15,12 @@
 #include "hamlib.h"
 #include "psk.h"
 
-extern BeaconStruct beacon;
 extern ConsoleStruct console;
 extern TncStruct tnc;
 
 void cleanup(int sign) {	// clean up after catching ctrl-c
 	if (debug.verbose) printf("\nCleaning up.\n");
-	delete beacon.led;
+	delete beacon::led;
 	delete gps::led;
 	delete pskPttPin;
 	close(tnc.vhf_iface);
@@ -59,7 +58,7 @@ int main(int argc, char* argv[]) {
 	ts.it_value.tv_nsec = 0;
 	timerfd_settime(timer_fd, 0, &ts, 0);
 	
-	int beacon_rate = beacon.static_rate;
+	int beacon_rate = beacon::static_rate;
 	float turn_threshold = 0;
 	short int hdg_last = 0;
 	short int hdg_change = 0;
@@ -71,23 +70,23 @@ int main(int argc, char* argv[]) {
 		
 		if ((beacon_timer >= beacon_rate) && gps.valid) {			// if it's time...
 			if (debug.sb) printf("SB_DEBUG: Sending beacon.\n");
-			sendBeacon();
+			beacon::send();
 			
 			beacon_timer = 0;
 			hdg_last = gps.hdg;
 		}
 
-		if ((beacon.static_rate == 0) && gps.valid) {		// here we will implement SmartBeaconing(tm) from HamHUD.net
+		if ((beacon::static_rate == 0) && gps.valid) {		// here we will implement SmartBeaconing(tm) from HamHUD.net
 															// see http://www.hamhud.net/hh2/smartbeacon.html for more info
 			short int hdg_diff = gps.hdg - hdg_last;
 			
-			if (gps.speed <= beacon.sb_low_speed) {
-				beacon_rate = beacon.sb_low_rate;
-			} else if (gps.speed >= beacon.sb_high_speed) {
-				beacon_rate = beacon.sb_high_rate;
+			if (gps.speed <= beacon::sb_low_speed) {
+				beacon_rate = beacon::sb_low_rate;
+			} else if (gps.speed >= beacon::sb_high_speed) {
+				beacon_rate = beacon::sb_high_rate;
 			} else {
-				beacon_rate = beacon.sb_high_rate * beacon.sb_high_speed / gps.speed;
-				turn_threshold = beacon.sb_turn_min + beacon.sb_turn_slope / gps.speed;
+				beacon_rate = beacon::sb_high_rate * beacon::sb_high_speed / gps.speed;
+				turn_threshold = beacon::sb_turn_min + beacon::sb_turn_slope / gps.speed;
 			
 				if (abs(hdg_diff) <= 180) {
 					hdg_change = abs(hdg_diff);
@@ -97,18 +96,18 @@ int main(int argc, char* argv[]) {
 					hdg_change = 360 - abs(hdg_diff);
 				}
 			
-				if (abs(hdg_change) > turn_threshold && beacon_timer > beacon.sb_turn_time) beacon_timer = beacon_rate;	// SmartBeaconing spec says CornerPegging is "ALWAYS" enabled, but GPS speed doesn't seem to be accurate enough to keep this from being triggered while stopped.
+				if (abs(hdg_change) > turn_threshold && beacon_timer > beacon::sb_turn_time) beacon_timer = beacon_rate;	// SmartBeaconing spec says CornerPegging is "ALWAYS" enabled, but GPS speed doesn't seem to be accurate enough to keep this from being triggered while stopped.
 			}
 			
 			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.speed, beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold);
-			if (console.disp) dprintf(console.iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold, beacon.last_heard);
+			if (console.disp) dprintf(console.iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold, beacon::last_heard);
 		}
 		
 		if (debug.sb && !gps.valid && gps::enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
 		if (console.disp && !gps.valid && gps::enabled) dprintf(console.iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
 		
 		beacon_timer++;
-		beacon.last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.
+		beacon::last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.
 	}
 
 	return 0;

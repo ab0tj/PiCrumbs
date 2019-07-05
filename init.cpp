@@ -24,7 +24,6 @@
 #include "predict.h"
 #include "psk.h"
 
-extern BeaconStruct beacon;
 extern ConsoleStruct console;
 extern PredictStruct predict;
 extern HttpStruct http;
@@ -175,11 +174,11 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (debug.verbose) printf("Using config file %s\n", configfile.c_str());
  // station info
 	string call = readconfig.Get("station", "mycall", "N0CALL");	// parse the mycall config paramater
-	beacon.mycall = get_call(call);
-	beacon.myssid = get_ssid(call);
-	if (beacon.mycall.length() > 6) printf("WARNING: Station callsign too long for AX25. It will be truncated to 6 characters if used for packet paths.\n");
-	if (beacon.myssid > 15) printf("WARNING: SSID not valid for AX25 (it should be 0-15). Expect weirdness if used on packet paths.\n");
-	if (debug.verbose) printf("Operating as %s-%i\n", beacon.mycall.c_str(), beacon.myssid);
+	beacon::mycall = get_call(call);
+	beacon::myssid = get_ssid(call);
+	if (beacon::mycall.length() > 6) printf("WARNING: Station callsign too long for AX25. It will be truncated to 6 characters if used for packet paths.\n");
+	if (beacon::myssid > 15) printf("WARNING: SSID not valid for AX25 (it should be 0-15). Expect weirdness if used on packet paths.\n");
+	if (debug.verbose) printf("Operating as %s-%i\n", beacon::mycall.c_str(), beacon::myssid);
 // gpio config
 	tempInt = readconfig.GetInteger("gpio", "expander", -1);
 	tempInt1 = strtol(readconfig.Get("gpio", "expander_addr", "-1").c_str(), NULL, 16);
@@ -207,25 +206,25 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string console_port = readconfig.Get("console", "port", "/dev/ttyS4");
 	unsigned int console_baud = readconfig.GetInteger("console", "baud", 115200);
  // beacon config
-	beacon.comment = readconfig.Get("beacon", "comment", "");
-	beacon.compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
-	beacon.symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
-	beacon.symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
-	beacon.temp_file = readconfig.Get("beacon", "temp_file", "");
-	beacon.temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
-	beacon.adc_file = readconfig.Get("beacon", "adc_file", "");
-	beacon.adc_scale = atof(readconfig.Get("beacon", "adc_scale", "1").c_str());
-	beacon.static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
-	beacon.sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
-	beacon.sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
-	beacon.sb_high_speed = readconfig.GetInteger("beacon", "sb_high_speed", 60);
-	beacon.sb_high_rate = readconfig.GetInteger("beacon", "sb_high_rate", 180);
-	beacon.sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
-	beacon.sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
-	beacon.sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
+	beacon::comment = readconfig.Get("beacon", "comment", "");
+	beacon::compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
+	beacon::symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
+	beacon::symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
+	beacon::temp_file = readconfig.Get("beacon", "temp_file", "");
+	beacon::temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
+	beacon::adc_file = readconfig.Get("beacon", "adc_file", "");
+	beacon::adc_scale = atof(readconfig.Get("beacon", "adc_scale", "1").c_str());
+	beacon::static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
+	beacon::sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
+	beacon::sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
+	beacon::sb_high_speed = readconfig.GetInteger("beacon", "sb_high_speed", 60);
+	beacon::sb_high_rate = readconfig.GetInteger("beacon", "sb_high_rate", 180);
+	beacon::sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
+	beacon::sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
+	beacon::sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
 	tempInt1 = readconfig.GetInteger("beacon", "led_pin", 65536);
 	tempInt2 = readconfig.GetInteger("beacon", "led_pin2", 65536);
-	if (tempInt1 < 65536) beacon.led = new gpio::Led(tempInt1, tempInt2);
+	if (tempInt1 < 65536) beacon::led = new gpio::Led(tempInt1, tempInt2);
  // sat tracking config
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
@@ -234,14 +233,14 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string hamlib_port = readconfig.Get("radio", "port", "/dev/ttyS3");
 	string hamlib_baud = readconfig.Get("radio", "baud", "9600");		// hamlib doesn't want an int here
 	unsigned short int hamlib_model = readconfig.GetInteger("radio", "model", 1);	// dummy rig as default
-	if (hamlib.enabled) beacon.radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
+	if (hamlib.enabled) beacon::radio_retune = readconfig.GetBoolean("radio", "retune", "false");	// don't try to retune if hamlib is not enabled
  // aprs-is config
 	http.enabled = readconfig.GetBoolean("aprsis", "enable", "false");
 	http.server = readconfig.Get("aprsis", "server", "rotate.aprs2.net");
 	http.port = readconfig.GetInteger("aprsis", "port", 8080);
 	http.proxy = readconfig.Get("aprsis", "proxy", "");
 	http.proxy_port = readconfig.GetInteger("aprsis", "proxy_port", 1080);
-	http.user = readconfig.Get("aprsis", "user", beacon.mycall);
+	http.user = readconfig.Get("aprsis", "user", beacon::mycall);
 	http.pass = readconfig.Get("aprsis", "pass", "-1");
 
  // path config
@@ -312,12 +311,12 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 			}
 		}
 
-		beacon.aprs_paths.push_back(thispath);		// add path to path vector
+		beacon::aprs_paths.push_back(thispath);		// add path to path vector
 		pathidx++;
 		pathsect.str(string());	// clear pathsect
 		pathsect << "path" << pathidx;
 	} while (readconfig.GetInteger(pathsect.str(), "proto", -1) != -1);	// all paths must at least have a proto setting
-	if (debug.verbose) printf("Found %i APRS paths.\n", (int)beacon.aprs_paths.size());
+	if (debug.verbose) printf("Found %i APRS paths.\n", (int)beacon::aprs_paths.size());
 
 // OPEN TNC INTERFACE(s)
 
@@ -350,7 +349,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (console_enable) console.iface = open_port("console", console_port, console_baud, true, true);
 
 // SET INITAL VALUES
-	beacon.last_heard = 999;
+	beacon::last_heard = 999;
 	
 	if (debug.verbose) printf("Init finished!\n\n");
 }	// END OF 'init'

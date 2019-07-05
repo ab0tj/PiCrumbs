@@ -11,7 +11,6 @@
 #include "console.h"
 #include "debug.h"
 
-extern BeaconStruct beacon;
 extern ConsoleStruct console;
 
 // VARS
@@ -174,9 +173,9 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		if (console.disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
-	if ((source.callsign.compare(beacon.mycall.substr(0,6)) == 0) && (source.ssid == beacon.myssid || beacon.myssid > 15)) {
-		if (debug.tnc) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", beacon.last_heard);
-		beacon.last_heard = 0;	// clear last_heard if we were successfully digi'd.
+	if ((source.callsign.compare(beacon::mycall.substr(0,6)) == 0) && (source.ssid == beacon::myssid || beacon::myssid > 15)) {
+		if (debug.tnc) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", beacon::last_heard);
+		beacon::last_heard = 0;	// clear last_heard if we were successfully digi'd.
 	}
 } // END OF 'process_ax25_frame'
 
