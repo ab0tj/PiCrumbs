@@ -8,15 +8,13 @@ using namespace std;
 // INCLUDES
 #include <string>
 
-// FUNCTIONS
-int console_print(string);
-void* console_thread(void*);
-void show_pathstats(bool);
-
-// STRUCTS
-struct ConsoleStruct
+namespace console
 {
-    int iface;				// console serial port fd
-    bool disp;				// print smartbeaconing params to console
-};
+    int conPrint(string);
+    void* thread(void*);
+    void show_pathstats(bool);
+
+    extern int iface;				// console serial port fd
+    extern bool disp;				// print smartbeaconing params to console
+}
 #endif

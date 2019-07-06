@@ -6,8 +6,6 @@
 #include <mutex>
 #include <libgpsmm.h>
 
-extern ConsoleStruct console;
-
 namespace gps
 {
 	namespace
@@ -39,7 +37,7 @@ namespace gps
 				posLock.unlock();
 				if (led != NULL) led->setColor(gpio::Red);
 				if (debug.gps) printf("GPS_DEBUG: GPSd timeout.\n");
-				if (console.disp) console_print("\x1B[4;6H\x1B[KGPSd timeout.");
+				if (console::disp) console::conPrint("\x1B[4;6H\x1B[KGPSd timeout.");
 				continue;
 			}
 			
@@ -66,11 +64,11 @@ namespace gps
 				if (newdata->set & ALTITUDE_SET) currentPos.alt = newdata->fix.altitude;
 				
 				if (debug.gps) printf("GPS_DEBUG: Lat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", currentPos.lat, currentPos.lon, currentPos.alt, currentPos.speed, currentPos.hdg, newdata->fix.mode);
-				if (console.disp) dprintf(console.iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Fix:%iD\n", currentPos.lat, currentPos.lon, currentPos.alt, currentPos.speed, currentPos.hdg, newdata->fix.mode);
+				if (console::disp) dprintf(console::iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Fix:%iD\n", currentPos.lat, currentPos.lon, currentPos.alt, currentPos.speed, currentPos.hdg, newdata->fix.mode);
 			} else {
 				currentPos.valid = false;	// no fix
 				if (debug.gps) printf("GPS_DEBUG: No fix.\n");
-				if (console.disp) console_print("\x1B[4;6H\x1B[KNo Fix.");
+				if (console::disp) console::conPrint("\x1B[4;6H\x1B[KNo Fix.");
 			}
 			bool valid = currentPos.valid;
 			posLock.unlock();

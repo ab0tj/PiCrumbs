@@ -11,8 +11,6 @@
 #include "console.h"
 #include "debug.h"
 
-extern ConsoleStruct console;
-
 // VARS
 TncStruct tnc;
 string last_tx_packet;				// the last kiss frame that we sent
@@ -133,7 +131,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 	source.ssid = data[13];
 	source.decode();
 
-	if (debug.tnc || console.disp) {					// process the rest of the frame and print it out
+	if (debug.tnc || console::disp) {					// process the rest of the frame and print it out
 		ax25address destination;
 		vector<ax25address> via;
 		stringstream tnc2;
@@ -170,7 +168,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 		if (index < data.length() - 3) tnc2 << ':' << StripNonAscii(data.substr(index+2));
 		
 		if (debug.tnc) printf("TNC_IN: %s\n", tnc2.str().c_str());
-		if (console.disp) console_print("\x1B[6;6H\x1B[K" + tnc2.str());
+		if (console::disp) console::conPrint("\x1B[6;6H\x1B[K" + tnc2.str());
 	}
 
 	if ((source.callsign.compare(beacon::mycall.substr(0,6)) == 0) && (source.ssid == beacon::myssid || beacon::myssid > 15)) {

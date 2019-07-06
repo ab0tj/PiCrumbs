@@ -24,7 +24,6 @@
 #include "predict.h"
 #include "psk.h"
 
-extern ConsoleStruct console;
 extern PredictStruct predict;
 extern HttpStruct http;
 extern HamlibStruct hamlib;
@@ -346,7 +345,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	}
 	
 // OPEN CONSOLE INTERFACE
-	if (console_enable) console.iface = open_port("console", console_port, console_baud, true, true);
+	if (console_enable) console::iface = open_port("console", console_port, console_baud, true, true);
 
 // SET INITAL VALUES
 	beacon::last_heard = 999;

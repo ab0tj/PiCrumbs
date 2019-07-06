@@ -17,8 +17,6 @@
 #include "gps.h"
 #include "debug.h"
 
-extern ConsoleStruct console;
-
 namespace beacon
 {
 	string mycall;						// callsign we're operating under, excluding ssid
@@ -43,7 +41,7 @@ namespace beacon
 	string adc_file;					// file to get ADC value from, blank to disable
 	float adc_scale;					// ADC scaling value
 	gpio::Led* led;						// LED to display beacon status
-	
+
 	int get_temp();
 	float get_voltage();
 
@@ -243,7 +241,7 @@ namespace beacon
 			
 		}
 		
-		if (console.disp) show_pathstats(true);
+		if (console::disp) console::show_pathstats(true);
 		return path;
 	}
 
