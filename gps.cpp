@@ -5,13 +5,15 @@
 #include <pthread.h>
 #include <mutex>
 #include <libgpsmm.h>
+#include <cstring>
 
 namespace gps
 {
 	namespace
 	{
 		mutex currentPos_mutex;
-		GpsPos currentPos;
+		PosStruct currentPos;
+		float spdMult = 2.23694;	// MPH
 		bool gotFix;
 	}
 	bool enabled;
@@ -25,6 +27,9 @@ namespace gps
 			fprintf(stderr, "GPSD is not running.\n");
 			return 0;
 		}
+
+		currentPos.spdUnitName = new char[4];
+		strcpy(currentPos.spdUnitName, "MPH");
 
 		if (debug.verbose) printf("Waiting for GPS fix...");
 
@@ -59,12 +64,16 @@ namespace gps
 					currentPos.lat = newdata->fix.latitude;
 					currentPos.lon = newdata->fix.longitude;
 				}
-				if (newdata->set & SPEED_SET) currentPos.speed = newdata->fix.speed * 2.23694;	// gpsd reports in m/s, covert to mph.
+				if (newdata->set & SPEED_SET)
+				{
+					currentPos.speed = newdata->fix.speed;	// gpsd reports in m/s
+					currentPos.localSpeed = newdata->fix.speed * spdMult;
+				}
 				if (newdata->set & TRACK_SET) currentPos.hdg = newdata->fix.track;
 				if (newdata->set & ALTITUDE_SET) currentPos.alt = newdata->fix.altitude;
 				
-				if (debug.gps) printf("GPS_DEBUG: Lat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Mode:%iD\n", currentPos.lat, currentPos.lon, currentPos.alt, currentPos.speed, currentPos.hdg, newdata->fix.mode);
-				if (console::disp) dprintf(console::iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i MPH:%.2f Hdg:%i Fix:%iD\n", currentPos.lat, currentPos.lon, currentPos.alt, currentPos.speed, currentPos.hdg, newdata->fix.mode);
+				if (debug.gps) printf("GPS_DEBUG: Lat:%f Lon:%f Alt:%i %s:%.2f Hdg:%i Mode:%iD\n", currentPos.lat, currentPos.lon, currentPos.alt, currentPos.spdUnitName, currentPos.localSpeed, currentPos.hdg, newdata->fix.mode);
+				if (console::disp) dprintf(console::iface, "\x1B[4;6H\x1B[KLat:%f Lon:%f Alt:%i %s:%.2f Hdg:%i Fix:%iD\n", currentPos.lat, currentPos.lon, currentPos.alt, currentPos.spdUnitName, currentPos.localSpeed, currentPos.hdg, newdata->fix.mode);
 			} else {
 				currentPos.valid = false;	// no fix
 				if (debug.gps) printf("GPS_DEBUG: No fix.\n");
@@ -91,7 +100,7 @@ namespace gps
 		}
 	}
 
-	GpsPos getPos()
+	PosStruct getPos()
 	{
 		lock_guard<mutex> guard(currentPos_mutex);
 		return currentPos;

@@ -47,14 +47,14 @@ namespace beacon
 
 	bool send_pos_report(aprspath& path = aprs_paths[0]) {			// exactly what it sounds like
 		stringstream buff;
-		GpsPos gps = gps::getPos();
+		gps::PosStruct gps = gps::getPos();
 
 		time(&path.lastused);			// update lastused time on path
 		path.attempt++;					// update stats
 		
 		char* pos = new char[21];
 		if (compress_pos) {		// build compressed position report as an array of bytes
-			float speed = gps.speed * 0.868976;				// convert mph to knots
+			float speed = gps.speed * 1.94384;	// convert m/s to knots
 			pos[0] = '!';		// realtime position, no messaging
 			pos[1] = symbol_table;
 			float lat = gps.lat;	// grab a copy of our location so we can do math on it
@@ -76,7 +76,7 @@ namespace beacon
 			pos[10] = symbol_char;
 			pos[11] = gps.hdg / 4 + 33;
 			pos[12] = log(speed+1)/log(1.08) + 33;
-			pos[13] = 0x5F;			// set "T" byte
+			pos[13] = 0x47;			// set "T" byte
 			pos[14] = 0x00;			// (null terminated string)
 		} else {	// uncompressed packet
 			char pos_lat_dir = 'N';
@@ -90,6 +90,12 @@ namespace beacon
 		buff << pos;
 		delete[] pos;
 
+		if (adc_file.compare("") != 0)
+		{
+			float volts = get_voltage();
+			if (volts != -1) buff << volts << "V ";
+		}
+
 		if (temp_file.compare("") != 0) {	// user specified a temp sensor is available
 			int t = get_temp();
 			if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
@@ -100,12 +106,6 @@ namespace beacon
 					buff << "C ";
 				}
 			}
-		}
-
-		if (adc_file.compare("") != 0)
-		{
-			float volts = get_voltage();
-			if (volts != -1) buff << volts << "V ";
 		}
 
 		if (path.usePathComment)

@@ -8,22 +8,26 @@ using namespace std;
 
 #include "gpio.h"
 
-struct GpsPos
-{
-    bool valid;						// should we be sending beacons?
-    float lat;					    // current latitude
-    float lon;					    // current longitude
-    unsigned short int alt;			// current altitude in meters
-    float speed;					// speed from gps, in mph
-    short int hdg;					// heading from gps
-};
-
 namespace gps
 {
+    enum SpeedUnit { MPH, KPH, MPS, KT };
+
+    struct PosStruct
+    {
+        bool valid;						// should we be sending beacons?
+        float lat;					    // current latitude
+        float lon;					    // current longitude
+        unsigned short int alt;			// current altitude in meters
+        float speed;					// speed from gps, in m/s
+        float localSpeed;               // speed in local units
+        char* spdUnitName;              // name of local speed unit
+        short int hdg;					// heading from gps
+    };
+
     extern bool enabled;
     extern gpio::Led* led;
     void* gps_thread(void*);
-    GpsPos getPos();
+    PosStruct getPos();
 }
 
 #endif

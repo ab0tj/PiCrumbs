@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 	
 	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {		// then send them periodically after that
 		// if (debug.verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
-		GpsPos gps = gps::getPos();
+		gps::PosStruct gps = gps::getPos();
 		
 		if ((beacon_timer >= beacon_rate) && gps.valid) {			// if it's time...
 			if (debug.sb) printf("SB_DEBUG: Sending beacon.\n");
@@ -78,13 +78,13 @@ int main(int argc, char* argv[]) {
 															// see http://www.hamhud.net/hh2/smartbeacon.html for more info
 			short int hdg_diff = gps.hdg - hdg_last;
 			
-			if (gps.speed <= beacon::sb_low_speed) {
+			if (gps.localSpeed <= beacon::sb_low_speed) {
 				beacon_rate = beacon::sb_low_rate;
-			} else if (gps.speed >= beacon::sb_high_speed) {
+			} else if (gps.localSpeed >= beacon::sb_high_speed) {
 				beacon_rate = beacon::sb_high_rate;
 			} else {
-				beacon_rate = beacon::sb_high_rate * beacon::sb_high_speed / gps.speed;
-				turn_threshold = beacon::sb_turn_min + beacon::sb_turn_slope / gps.speed;
+				beacon_rate = beacon::sb_high_rate * beacon::sb_high_speed / gps.localSpeed;
+				turn_threshold = beacon::sb_turn_min + beacon::sb_turn_slope / gps.localSpeed;
 			
 				if (abs(hdg_diff) <= 180) {
 					hdg_change = abs(hdg_diff);
@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
 				if (abs(hdg_change) > turn_threshold && beacon_timer > beacon::sb_turn_time) beacon_timer = beacon_rate;	// SmartBeaconing spec says CornerPegging is "ALWAYS" enabled, but GPS speed doesn't seem to be accurate enough to keep this from being triggered while stopped.
 			}
 			
-			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.speed, beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold);
+			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.localSpeed, beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold);
 			if (console::disp) dprintf(console::iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold, beacon::last_heard);
 		}
 		

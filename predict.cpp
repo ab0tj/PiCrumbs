@@ -12,7 +12,7 @@ PredictStruct predict;
 bool is_visible(string sat, int min_ele) {		// use PREDICT to figure out if this sat is around to try
 	if (predict.path.compare("") == 0) return false;	// short circuit if predict not defined
 	ofstream qthfile;
-	GpsPos gps = gps::getPos();
+	gps::PosStruct gps = gps::getPos();
 	qthfile.open("/tmp/picrumbs.qth", ios::trunc);		// PREDICT doesn't seem to be able to take a location via command line, so we need to build a "qth file" based on the current position.
 	qthfile.precision(6);
 	qthfile << fixed;
