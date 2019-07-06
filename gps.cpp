@@ -80,16 +80,15 @@ namespace gps
 				if (led->isBicolor())
 				{	// One red blink for invalid, one green blink for valid
 					led->setColor(valid ? gpio::Green : gpio::Red);
-					usleep(30000);
+					usleep(50000);
 					led->setColor(gpio::LedOff);
 				}
 				else
 				{	// Invalid = off with blink to show data received, valid = the opposite
 					led->setColor(valid ? gpio::LedOff : gpio::Green);
-					usleep(30000);
+					usleep(50000);
 					led->setColor(valid ? gpio::Green : gpio::LedOff);
 				}
-				
 			}
 		}
 	}

@@ -63,6 +63,9 @@ namespace gpio
 			redPin = new Pin(pin2, OUTPUT, false);
 			biColor = true;
 		}
+		else biColor = false;
+
+		if (debug.verbose) printf("LED at pin %d is %sbicolor\n", pin1, biColor ? "": "not ");
 	}
 
 	Led::~Led()
