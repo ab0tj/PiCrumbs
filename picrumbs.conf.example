@@ -80,6 +80,12 @@ sb_high_rate = 180
 sb_turn_min = 30
 sb_turn_time = 15
 sb_turn_slope = 255
+; send_speed, send_course, send_alt: send course, speed, or altitude with position
+; default is none for uncompressed packet, course and speed for compressed packet.
+; compressed packet cannot send course or speed if altitude is enabled.
+send_speed = true
+send_course = true
+send_alt = false
 ; temp_file: path to file containing a temperature value in millicelsius.
 ; value will be sent with position beacon if defined.
 ; temp_file = /sys/class/hwmon/hwmon0/temp1_input

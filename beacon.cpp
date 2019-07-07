@@ -21,7 +21,10 @@ namespace beacon
 {
 	string mycall;						// callsign we're operating under, excluding ssid
 	unsigned char myssid;				// ssid of this station (stored as a number, not ascii)
-	bool compress_pos;					// should we compress the aprs packet?
+	bool compress;
+	bool send_course;
+	bool send_speed;
+	bool send_alt;
 	char symbol_table;					// which symbol table to use
 	char symbol_char;					// which symbol to use from the table
 	string comment;						// comment to send along with aprs packets
@@ -52,9 +55,10 @@ namespace beacon
 		time(&path.lastused);			// update lastused time on path
 		path.attempt++;					// update stats
 		
+		float speed = gps.speed * 1.94384;	// convert m/s to knots
+		uint alt = gps.alt * 3.28084;	// convert meters to feet
 		char* pos = new char[21];
-		if (compress_pos) {		// build compressed position report as an array of bytes
-			float speed = gps.speed * 1.94384;	// convert m/s to knots
+		if (compress) {			// build compressed position report as an array of bytes
 			pos[0] = '!';		// realtime position, no messaging
 			pos[1] = symbol_table;
 			float lat = gps.lat;	// grab a copy of our location so we can do math on it
@@ -74,10 +78,29 @@ namespace beacon
 			pos[8] = (int)lon / 91 + 33;
 			pos[9] = (int)lon % 91 + 33;
 			pos[10] = symbol_char;
-			pos[11] = gps.hdg / 4 + 33;
-			pos[12] = log(speed+1)/log(1.08) + 33;
-			pos[13] = 0x47;			// set "T" byte
+
+			if (!send_course && !send_speed && !send_alt)
+			{
+				pos[11] = pos[12] = pos[13] = ' ';
+			}
+			else if (send_course || send_speed)
+			{
+				pos[11] = pos[12] = 33;
+				if (send_course) pos[11] += gps.hdg / 4;
+				if (send_speed) pos[12] += log(speed+1)/log(1.08);
+				pos[13] = 0x47;			// set "T" byte
+			}
+			else	// send altitude
+			{
+				int x = log(alt) / log(1.002);
+				pos[11] = x / 91 + 33;
+				pos[12] = x % 91 + 33;
+				pos[13] = 0x57;
+			}
+
 			pos[14] = 0x00;			// (null terminated string)
+			buff << pos;
+
 		} else {	// uncompressed packet
 			char pos_lat_dir = 'N';
 			char pos_lon_dir = 'E';
@@ -86,9 +109,23 @@ namespace beacon
 
 			sprintf(pos, "!%05.2f%c%c%06.2f%c%c", abs(int(gps.lat)*100 + (gps.lat-int(gps.lat))*60) , pos_lat_dir, symbol_table
 								, abs(int(gps.lon)*100 + (gps.lon-int(gps.lon))*60) , pos_lon_dir, symbol_char);
+			buff << pos;
+
+			if (send_course || send_speed)
+			{
+				if (send_course && send_speed) sprintf(pos, "%03d/%03d", gps.hdg, (int)speed);
+				else if (send_course && !send_speed) sprintf(pos, "%03d/...", gps.hdg);
+				else sprintf(pos, ".../%03d", (int)speed);
+				buff << pos;
+			}
+			if (send_alt)
+			{
+				sprintf(pos, "/A=%06d", alt);
+				buff << pos;
+			}
 		}
-		buff << pos;
 		delete[] pos;
+		
 
 		if (adc_file.compare("") != 0)
 		{

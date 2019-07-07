@@ -206,7 +206,10 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	unsigned int console_baud = readconfig.GetInteger("console", "baud", 115200);
  // beacon config
 	beacon::comment = readconfig.Get("beacon", "comment", "");
-	beacon::compress_pos = readconfig.GetBoolean("beacon", "compressed", false);
+	beacon::compress = readconfig.GetBoolean("beacon", "compressed", false);
+	beacon::send_alt = readconfig.GetBoolean("beacon", "send_alt", false);
+	beacon::send_course = readconfig.GetBoolean("beacon", "send_course", beacon::compress && !beacon::send_alt);
+	beacon::send_speed = readconfig.GetBoolean("beacon", "send_speed", beacon::compress && !beacon::send_alt);
 	beacon::symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
 	beacon::symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
 	beacon::temp_file = readconfig.Get("beacon", "temp_file", "");
@@ -224,6 +227,11 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	tempInt1 = readconfig.GetInteger("beacon", "led_pin", 65536);
 	tempInt2 = readconfig.GetInteger("beacon", "led_pin2", 65536);
 	if (tempInt1 < 65536) beacon::led = new gpio::Led(tempInt1, tempInt2);
+	if (beacon::compress && beacon::send_alt && (beacon::send_course || beacon::send_speed))
+	{
+		fprintf(stderr, "Configuration error: Compressed beacon supports course and speed or altitude, but not both.\n");
+		exit(EXIT_FAILURE);
+	}
  // sat tracking config
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
@@ -259,14 +267,14 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	modemap["PKTLSB"] = RIG_MODE_PKTLSB;
 
 	do {		// loop thru all paths in the config file
-		aprspath thispath = aprspath();
+		beacon::aprspath thispath = beacon::aprspath();
 		string path_s = pathsect.str();
 		thispath.name = readconfig.Get(path_s, "name", path_s);
 		thispath.freq = readconfig.GetInteger(path_s, "freq", 144390000);
 		thispath.mode = modemap[readconfig.Get(path_s, "mode", "FM")];
 		thispath.sat = readconfig.Get(path_s, "sat", "");
 		thispath.min_ele = readconfig.GetInteger(path_s, "min_ele", 0);
-		thispath.proto = (PathType)readconfig.GetInteger(path_s, "proto", 0);
+		thispath.proto = (beacon::PathType)readconfig.GetInteger(path_s, "proto", 0);
 		thispath.psk_freq = readconfig.GetInteger(path_s, "psk_freq", 2100);
 		thispath.psk_vol = readconfig.GetInteger(path_s, "psk_vol", 100);
 		if (thispath.proto == 2) curl_global_init(CURL_GLOBAL_ALL);		// we won't init curl if it's never going to be used

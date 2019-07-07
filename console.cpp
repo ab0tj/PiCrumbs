@@ -32,7 +32,7 @@ namespace console
 		stringstream buff_out;
 		
 		for (unsigned int i=0; i < beacon::aprs_paths.size(); i++) {		// loop thru all paths
-			aprspath* path = &beacon::aprs_paths[i];
+			beacon::aprspath* path = &beacon::aprs_paths[i];
 			buff_out << path->name << ": " << path->success;
 			
 			if (path->attempt > 0) {

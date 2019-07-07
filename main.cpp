@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 			}
 			
 			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.localSpeed, beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold);
-			if (console::disp) dprintf(console::iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold, beacon::last_heard);
+			if (console::disp) dprintf(console::iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_change, turn_threshold, beacon::last_heard);
 		}
 		
 		if (debug.sb && !gps.valid && gps::enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
