@@ -6,6 +6,7 @@
 #include <fstream>
 #include <unistd.h>
 #include <string.h>
+#include <ctime>
 #include "hamlib.h"
 #include "gpio.h"
 #include "http.h"
@@ -28,6 +29,7 @@ namespace beacon
 	char symbol_table;					// which symbol table to use
 	char symbol_char;					// which symbol to use from the table
 	string comment;						// comment to send along with aprs packets
+	string status;
 	vector<aprspath> aprs_paths;		// APRS paths to try, in order of preference
 	unsigned int last_heard;			// time since we heard our call on vhf
 	bool radio_retune;					// should we retune the radio after beaconing?
@@ -39,14 +41,53 @@ namespace beacon
 	unsigned short int sb_turn_time; 	// SmartBeaconing turn time (minimum)
 	unsigned short int sb_turn_slope; 	// SmartBeaconing turn slope
 	unsigned int static_rate;			// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
+	unsigned int status_rate;
+	unsigned int status_path;
     string temp_file;					// file to get temperature info from, blank to disable
     bool temp_f;						// temp units: false for C, true for F
 	string adc_file;					// file to get ADC value from, blank to disable
 	float adc_scale;					// ADC scaling value
+	bool tempInComment;
+	bool tempInStatus;
+	bool adcInComment;
+	bool adcInStatus;
 	gpio::Led* led;						// LED to display beacon status
 
 	int get_temp();
 	float get_voltage();
+
+	bool send_packet(aprspath& path, string payload)
+	{
+		switch (path.proto) {	// choose the appropriate way to send the beacon
+			case VHF_AX25:
+			case HF_AX25:
+				send_kiss_frame((path.proto == HF_AX25), mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, payload);
+				return true;
+
+			case APRS_IS:
+				return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, payload);
+
+			case PSK63:
+				if (pskPttPin != NULL) {
+					send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, mycall.c_str(), myssid, PACKET_DEST, 0, payload.c_str());
+					return true;
+				}
+				return false;	// can't send psk without gpio (yet)
+
+			case PSKAndAX25:
+				if (!path.last_psk && pskPttPin != NULL) {	// send psk
+					send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, mycall.c_str(), myssid, PACKET_DEST, 0, payload.c_str());
+					path.last_psk = true;
+				} else {	// send 300bd
+					send_kiss_frame(true, mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, payload);
+					path.last_psk = false;
+				}
+				return true;
+
+			default:
+				return false;
+		}
+	}
 
 	bool send_pos_report(aprspath& path = aprs_paths[0]) {			// exactly what it sounds like
 		stringstream buff;
@@ -126,14 +167,13 @@ namespace beacon
 		}
 		delete[] pos;
 		
-
-		if (adc_file.compare("") != 0)
+		if (adcInComment)
 		{
 			float volts = get_voltage();
 			if (volts != -1) buff << volts << "V ";
 		}
 
-		if (temp_file.compare("") != 0) {	// user specified a temp sensor is available
+		if (tempInComment) {	// user specified a temp sensor is available
 			int t = get_temp();
 			if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
 				buff << t;
@@ -154,32 +194,45 @@ namespace beacon
 			buff << comment;
 		}
 		
-		switch (path.proto) {	// choose the appropriate way to send the beacon
-			case VHF_AX25:
-			case HF_AX25:
-				send_kiss_frame((path.proto == HF_AX25), mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, buff.str());
-				return true;
-			case APRS_IS:
-				return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, buff.str());
-			case PSK63:
-				if (pskPttPin != NULL) {
-					send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
-					return true;
-				}
-				return false;	// can't send psk without gpio (yet)
-			case PSKAndAX25:
-				if (!path.last_psk && pskPttPin != NULL) {	// send psk
-					send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, mycall.c_str(), myssid, PACKET_DEST, 0, buff.str().c_str());
-					path.last_psk = true;
-				} else {	// send 300bd
-					send_kiss_frame(true, mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, buff.str());
-					path.last_psk = false;
-				}
-				return true;
-		}
-		
-		return false;
+		return send_packet(path, buff.str());
 	}	// END OF 'send_pos_report'
+
+	bool send_status()
+	{
+		stringstream buff;
+		char* zulu = new char[9];
+		time_t rawtime;
+		struct tm* timeinfo;
+		time(&rawtime);
+		timeinfo = gmtime(&rawtime);
+		strftime(zulu, 9, ">%d%H%Mz", timeinfo);
+		buff << zulu;
+		delete zulu;
+
+		buff << status;
+		if (status.compare("") != 0 && (adcInStatus || tempInStatus)) buff << ' ';
+
+		if (adcInStatus)
+		{
+			float volts = get_voltage();
+			if (volts != -1) buff << volts << "V ";
+		}
+
+		if (tempInStatus) {	// user specified a temp sensor is available
+			int t = get_temp();
+			if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
+				buff << t;
+				if (temp_f) {
+					buff << "F ";
+				} else {
+					buff << "C ";
+				}
+			}
+		}
+
+		tune_radio(aprs_paths[status_path].freq, aprs_paths[status_path].mode);
+		return send_packet(aprs_paths[status_path], buff.str());
+	}
 
 	bool wait_for_digi() {
 		int timeout = 6;
@@ -240,9 +293,10 @@ namespace beacon
 		return -1;	// if we made it this far we are totally outta luck. return failure.
 	} // END OF 'path_select_beacon'
 
-	int send() {
+	int send(BeaconType type) {
 		freq_t radio_freq;
 		rmode_t radio_mode;
+		int path;
 
 		if (radio_retune) {
 			radio_freq = get_radio_freq();			// save radio frequency
@@ -250,39 +304,50 @@ namespace beacon
 			if (debug.verbose) printf("FH_DEBUG: Current radio frequency is %.0f %s\n", radio_freq, rig_strrmode(radio_mode));
 		}
 
-		int path = path_select_beacon();			// send a beacon and do some housekeeping afterward
-		
+		switch (type)
+		{
+			case Position:
+				path = path_select_beacon();	// send a beacon and do some housekeeping afterward
+				if (path != -1)
+				{
+					aprs_paths[path].success++;	// update stats
+					if (led != NULL) led->setColor(gpio::Green);
+				}
+				else if (led != NULL) led->setColor(gpio::Red);
+
+				if (debug.fh)
+				{
+					if (path == -1)
+					{
+						printf("FH_DEBUG: Path select returned failure\n");
+					}
+					else
+					{
+						printf("FH_DEBUG: Success via %s\n", aprs_paths[path].name.c_str());
+					}
+					
+				}
+				
+				if (console::disp) console::show_pathstats(true);
+				break;
+
+			case Status:
+				path = status_path;
+				send_status();
+				sleep(5);	// give time for the packet to transmit
+				break;
+		}
+
 		if (radio_retune) {
 			set_radio_freq(radio_freq);				// return radio to previous frequency
 			set_radio_mode(radio_mode);				// return radio to previous mode
 		}
 		else if (path != 0) tune_radio(aprs_paths[0].freq, aprs_paths[0].mode);
 
-		if (path != -1)
-		{
-			aprs_paths[path].success++;	// update stats
-			if (led != NULL) led->setColor(gpio::Green);
-		}
-		else if (led != NULL) led->setColor(gpio::Red);
-
-		if (debug.fh)
-		{
-			if (path == -1)
-			{
-				printf("FH_DEBUG: Path select returned failure\n");
-			}
-			else
-			{
-				printf("FH_DEBUG: Success via %s\n", aprs_paths[path].name.c_str());
-			}
-			
-		}
-		
-		if (console::disp) console::show_pathstats(true);
 		return path;
 	}
 
-	int get_w1_temp() {	// get temperature from one-wire sensor
+	/*int get_w1_temp() {	// get temperature from one-wire sensor
 		ifstream tempfile;
 		string line;
 		int temp = 0;
@@ -298,7 +363,7 @@ namespace beacon
 		} else temp = -65535;
 		tempfile.close();
 		return temp;
-	} // END OF 'get_w1_temp'
+	} // END OF 'get_w1_temp'*/
 
 	int get_temp()	// get temperature from hwmon formatted file
 	{

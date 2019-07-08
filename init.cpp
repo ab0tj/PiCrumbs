@@ -214,8 +214,14 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon::symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
 	beacon::temp_file = readconfig.Get("beacon", "temp_file", "");
 	beacon::temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
+	beacon::tempInStatus = readconfig.GetBoolean("beacon", "temp_in_status", false);
+	beacon::tempInComment = readconfig.GetBoolean("beacon", "temp_in_comment", !beacon::tempInStatus);
+	if (beacon::temp_file.compare("") == 0) beacon::tempInStatus = beacon::tempInComment = false;
 	beacon::adc_file = readconfig.Get("beacon", "adc_file", "");
 	beacon::adc_scale = atof(readconfig.Get("beacon", "adc_scale", "1").c_str());
+	beacon::adcInStatus = readconfig.GetBoolean("beacon", "adc_in_status", false);
+	beacon::adcInComment = readconfig.GetBoolean("beacon", "adc_in_comment", !beacon::adcInStatus);
+	if (beacon::adc_file.compare("") == 0) beacon::adcInStatus = beacon::adcInComment = false;
 	beacon::static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	beacon::sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	beacon::sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
@@ -224,6 +230,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon::sb_turn_min = readconfig.GetInteger("beacon", "sb_turn_min", 30);
 	beacon::sb_turn_time = readconfig.GetInteger("beacon", "sb_turn_time", 15);
 	beacon::sb_turn_slope = readconfig.GetInteger("beacon", "sb_turn_slope", 255);
+	beacon::status = readconfig.Get("beacon", "status", "");
+	beacon::status_rate = readconfig.GetInteger("beacon", "status_rate", 0);
+	beacon::status_path = readconfig.GetInteger("beacon", "status_path", 1) - 1;
 	tempInt1 = readconfig.GetInteger("beacon", "led_pin", 65536);
 	tempInt2 = readconfig.GetInteger("beacon", "led_pin2", 65536);
 	if (tempInt1 < 65536) beacon::led = new gpio::Led(tempInt1, tempInt2);

@@ -79,7 +79,7 @@ namespace console
 			else if (param.compare("bcnnow") == 0) {
 				conPrint("Sending beacon...\r\n");
 				
-				int path = beacon::send();
+				int path = beacon::send(beacon::Position);
 				if (path == -1) {
 					conPrint("Beacon path selection failed.\r\n");
 				} else {

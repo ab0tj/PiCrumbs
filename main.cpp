@@ -57,19 +57,26 @@ int main(int argc, char* argv[]) {
 	ts.it_value.tv_nsec = 0;
 	timerfd_settime(timer_fd, 0, &ts, 0);
 	
-	int beacon_rate = beacon::static_rate;
+	uint beacon_rate = beacon::static_rate;
 	float turn_threshold = 0;
 	short int hdg_last = 0;
 	short int hdg_change = 0;
-	int beacon_timer = beacon_rate;									// send startup beacon
+	uint beacon_timer = beacon_rate;					// send startup beacon
+	uint status_timer = beacon::status_rate;			// and status report
 	
 	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {		// then send them periodically after that
 		// if (debug.verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
 		gps::PosStruct gps = gps::getPos();
 		
-		if ((beacon_timer >= beacon_rate) && gps.valid) {			// if it's time...
+		if (beacon::status_rate != 0 && status_timer++ >= beacon::status_rate)		// time for a status report
+		{
+			beacon::send(beacon::Status);
+			status_timer = 0;
+		}
+
+		if ((beacon_timer++ >= beacon_rate) && gps.valid) {			// time for a position report
 			if (debug.sb) printf("SB_DEBUG: Sending beacon.\n");
-			beacon::send();
+			beacon::send(beacon::Position);
 			beacon_timer = 0;
 			hdg_last = gps.hdg;
 		}
@@ -97,14 +104,13 @@ int main(int argc, char* argv[]) {
 				if (abs(hdg_change) > turn_threshold && beacon_timer > beacon::sb_turn_time) beacon_timer = beacon_rate;	// SmartBeaconing spec says CornerPegging is "ALWAYS" enabled, but GPS speed doesn't seem to be accurate enough to keep this from being triggered while stopped.
 			}
 			
-			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f\n", gps.localSpeed, beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold);
-			if (console::disp) dprintf(console::iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i HdgChg:%i Thres:%.0f LstHrd:%i", beacon_rate, beacon_timer, hdg_last, hdg_change, turn_threshold, beacon::last_heard);
+			if (debug.sb) printf("SB_DEBUG: Speed:%.2f Rate:%i Timer:%i LstHdg:%i Hdg:%i HdgChg:%i Thres:%.0f StsTmr:%d\n", gps.localSpeed, beacon_rate, beacon_timer, hdg_last, gps.hdg, hdg_change, turn_threshold, status_timer);
+			if (console::disp) dprintf(console::iface, "\x1B[5;6H\x1B[KRate:%i Timer:%i LstHdg:%i HdgChg:%i Thres:%.0f LstHrd:%i StsTmr:%d", beacon_rate, beacon_timer, hdg_last, hdg_change, turn_threshold, beacon::last_heard, status_timer);
 		}
 		
-		if (debug.sb && !gps.valid && gps::enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i\n", beacon_rate, beacon_timer);
-		if (console::disp && !gps.valid && gps::enabled) dprintf(console::iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i\n     ", beacon_rate, beacon_timer);
-		
-		beacon_timer++;
+		if (debug.sb && !gps.valid && gps::enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i StsTmr:%d\n", beacon_rate, beacon_timer, status_timer);
+		if (console::disp && !gps.valid && gps::enabled) dprintf(console::iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i StsTmr:%d\n     ", beacon_rate, beacon_timer, status_timer);
+
 		beacon::last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.
 	}
 
