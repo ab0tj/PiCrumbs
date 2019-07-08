@@ -94,7 +94,6 @@ status_rate = 0
 ; status_path: which path to use for status reports
 status_path = 1
 ; temp_file: path to file containing a temperature value in millicelsius.
-; value will be sent with position beacon if defined.
 ; temp_file = /sys/class/hwmon/hwmon0/temp1_input
 ; temp_f: temperature units. false for C, true for F
 temp_f = false
@@ -103,7 +102,6 @@ temp_in_comment = true
 ; temp_in_status: send temperature value in status report (default false)
 temp_in_status = false
 ; adc_file: path to a file containing an ADC's raw value
-; will be sent with location beacon if defined
 ; adc_file =  /sys/bus/iio/devices/iio:device0/in_voltage0_raw
 ; adc_scale: ADC value will be multiplied by this value to get a voltage reading
 adc_scale = 0.01

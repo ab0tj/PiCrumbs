@@ -66,15 +66,22 @@ int main(int argc, char* argv[]) {
 	
 	while (read(timer_fd, &missed_secs, sizeof(missed_secs))) {		// then send them periodically after that
 		// if (debug.verbose && missed_secs > 1) printf("Ticks missed: %lld\n", missed_secs - 1);
+		beacon_timer += missed_secs;
+		beacon::last_heard += missed_secs;
+
 		gps::PosStruct gps = gps::getPos();
 		
-		if (beacon::status_rate != 0 && status_timer++ >= beacon::status_rate)		// time for a status report
+		if (beacon::status_rate != 0)
 		{
-			beacon::send(beacon::Status);
-			status_timer = 0;
+			status_timer += missed_secs;
+			if (status_timer >= beacon::status_rate)		// time for a status report
+			{
+				beacon::send(beacon::Status);
+				status_timer = 0;
+			}
 		}
 
-		if ((beacon_timer++ >= beacon_rate) && gps.valid) {			// time for a position report
+		if ((beacon_timer >= beacon_rate) && gps.valid) {			// time for a position report
 			if (debug.sb) printf("SB_DEBUG: Sending beacon.\n");
 			beacon::send(beacon::Position);
 			beacon_timer = 0;
@@ -110,10 +117,7 @@ int main(int argc, char* argv[]) {
 		
 		if (debug.sb && !gps.valid && gps::enabled) printf("SB_DEBUG: GPS data invalid. Rate:%i Timer:%i StsTmr:%d\n", beacon_rate, beacon_timer, status_timer);
 		if (console::disp && !gps.valid && gps::enabled) dprintf(console::iface, "\x1B[5;6H\x1B[KGPS data invalid. Rate:%i Timer:%i StsTmr:%d\n     ", beacon_rate, beacon_timer, status_timer);
-
-		beacon::last_heard++;		// this will overflow if not reset for 136 years. then again maybe it's not a problem.
 	}
 
 	return 0;
-
 }	// END OF 'main'
