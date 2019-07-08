@@ -7,11 +7,14 @@ using namespace std;
 #define __PC_GPIO_INC
 
 #include <string>
+#include <vector>
+#include <mutex>
 
 namespace gpio
 {
     enum ExpanderType { MCP23008 = 0, MCP23017 = 1 };
     enum LedColor { LedOff, Red, Green };
+    enum LedBlink { Solid, BlinkOnce, Blink };
 
     class Pin
     {
@@ -32,14 +35,24 @@ namespace gpio
             Pin* greenPin;
             Pin* redPin;
             bool biColor;
+            LedColor color;
+            LedColor blinkColor;
+            LedBlink blink;
+            bool blinkState;
+            void setPins(LedColor);
+            mutex m;
 
         public:
-            void setColor(LedColor);
+            void update();
+            void set(LedColor, LedBlink = Solid, LedColor = LedOff);
             inline bool isBicolor() { return biColor; }
+            inline LedColor getColor() { return color; };
             Led(int, int);
             ~Led();
     };
+    extern vector<Led*> leds;
 
     void initExpander(ExpanderType, int, int);
+    void* gpio_thread(void*);
 };
 #endif

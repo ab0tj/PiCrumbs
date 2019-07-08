@@ -9,6 +9,7 @@
 namespace gpio
 {
 	bool setupDone;
+	vector<Led*> leds;
 
 	Pin::Pin(int pinNum, int mode, bool pullup)	// initialize a GPIO pin
 	{
@@ -66,6 +67,10 @@ namespace gpio
 		else biColor = false;
 
 		if (debug.verbose) printf("LED at pin %d is %sbicolor\n", pin1, biColor ? "": "not ");
+
+		set(LedOff, NoBlink, LedOff);
+		blinkState = false;
+		leds.push_back(this);
 	}
 
 	Led::~Led()
@@ -74,9 +79,35 @@ namespace gpio
 		delete redPin;
 	}
 
-	void Led::setColor(LedColor color)
+	void Led::update()
 	{
-		switch (color)
+		lock_guard<mutex> guard(m);
+
+		switch (blink)
+		{
+			case NoBlink:
+				break;
+
+			case BlinkOnce:
+			case BlinkOn:
+				if (blinkState)
+				{
+					blinkState = false;
+					setPins(color);
+					if (blink == BlinkOnce) blink = NoBlink;
+				}
+				else
+				{
+					blinkState = true;
+					setPins(blinkColor);
+				}
+				break;
+		}
+	}
+
+	void Led::setPins(LedColor c)
+	{
+		switch (c)
 		{
 			case LedOff:
 				greenPin->set(false);
@@ -93,6 +124,16 @@ namespace gpio
 				if (biColor) redPin->set(false);
 				break;
 		}
+	}
+
+	void Led::set(LedColor c, LedBlink b, LedColor bc)
+	{
+		lock_guard<mutex> guard(m);
+		bool update = (color != c);
+		color = c;
+		blink = b;
+		blinkColor = bc;
+		if (update) setPins(c);
 	}
 
 	void initExpander(ExpanderType type, int address, int pinBase)
@@ -112,5 +153,18 @@ namespace gpio
 		}
 
 		if (debug.verbose) printf("Initialized %s expander at 0x%02X\n", name.c_str(), address);
+	}
+
+	void* gpio_thread(void*)
+	{
+		for (;;)
+		{
+			usleep(100000);
+			
+			for (vector<Led*>::iterator l = leds.begin(); l != leds.end(); ++l)
+			{
+				(*l)->update();
+			}
+		}
 	}
 }

@@ -307,13 +307,15 @@ namespace beacon
 		switch (type)
 		{
 			case Position:
+				// blink the led while we try to send a packet
+				led->set(gpio::LedOff, gpio::Blink, led->isBicolor() ? led->getColor() : gpio::Green);
 				path = path_select_beacon();	// send a beacon and do some housekeeping afterward
 				if (path != -1)
 				{
 					aprs_paths[path].success++;	// update stats
-					if (led != NULL) led->setColor(gpio::Green);
+					if (led != NULL) led->set(gpio::Green);
 				}
-				else if (led != NULL) led->setColor(gpio::Red);
+				else if (led != NULL) led->set(gpio::Red);
 
 				if (debug.fh)
 				{

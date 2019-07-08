@@ -21,6 +21,7 @@ void cleanup(int sign) {	// clean up after catching ctrl-c
 	if (debug.verbose) printf("\nCleaning up.\n");
 	delete beacon::led;
 	delete gps::led;
+	delete tnc.led;
 	delete pskPttPin;
 	close(tnc.vhf_iface);
 	close(tnc.hf_iface);
@@ -46,6 +47,14 @@ int main(int argc, char* argv[]) {
 	if (console::iface > 0) {	// start the console interface if the port was opened
 		pthread_t console_t;
 		pthread_create(&console_t, NULL, &console::thread, NULL);
+	}
+
+	if (beacon::led != NULL) beacon::led->set(gpio::Red);
+
+	if (gpio::leds.size() > 0)
+	{
+		pthread_t gpio_t;
+		pthread_create(&gpio_t, NULL, &gpio::gpio_thread, NULL);
 	}
 
 	int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);	// once per second timer

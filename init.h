@@ -5,6 +5,7 @@ using namespace std;
 
 #ifndef __INIT_INC
 #define __INIT_INC
+
 // INCLUDES
 #include <string>
 

@@ -8,6 +8,7 @@ using namespace std;
 // INCLUDES
 #include <string>
 #include <vector>
+#include "gpio.h"
 
 // STRUCTS
 struct ax25address {				// struct for working with calls
@@ -25,6 +26,7 @@ struct TncStruct
 	unsigned char vhf_kissport;		// vhf tnc kiss port
 	int hf_iface;					// hf tnc serial port fd
 	unsigned char hf_kissport;		// hf tnc kiss port
+	gpio::Led* led;
 };
 
 // FUNCTIONS

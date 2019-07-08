@@ -14,6 +14,7 @@
 // VARS
 TncStruct tnc;
 string last_tx_packet;				// the last kiss frame that we sent
+gpio::Led* led;
 
 void ax25address::decode() {		// transform ax25 address into plaintext
 	string incall = callsign;
