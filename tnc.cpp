@@ -14,7 +14,6 @@
 // VARS
 TncStruct tnc;
 string last_tx_packet;				// the last kiss frame that we sent
-gpio::Led* led;
 
 void ax25address::decode() {		// transform ax25 address into plaintext
 	string incall = callsign;
@@ -101,6 +100,8 @@ void send_kiss_frame(bool hf, const char* source, unsigned char source_ssid, con
 	} else {
 		write(tnc.vhf_iface, buff.c_str(), buff.length());
 	}
+
+	if (tnc.led != NULL) tnc.led->set(gpio::LedOff, gpio::BlinkOnce, gpio::Red);
 	
 	if (debug.tnc) {
 		if (hf) {
@@ -202,6 +203,7 @@ void* tnc_thread(void*) {	// monitor the vhf data stream
 				case 0xC0: 				// data is terminated with a FEND.
 					if (buff.length() > 20) {		// don't bother if the buffer is smaller than a valid kiss frame
 						process_ax25_frame(buff);
+						if (tnc.led != NULL) tnc.led->set(gpio::LedOff, gpio::BlinkOnce, gpio::Green);
 					}
 					buff = "";
 					break;

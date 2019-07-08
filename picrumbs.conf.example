@@ -11,6 +11,11 @@ port = /dev/ttyS0
 kissport = 0
 ; baud is serial line rate, not on-air rate
 baud = 9600
+; led_pin: gpio pin to use for status LED (green)
+led_pin = 10
+; led_pin2: gpio pin for red status LED 
+; (optional even if led_pin is set, but does nothing if led_pin is not set)
+led_pin2 = 11
 
 ; 300-baud TNC
 [hf_tnc]

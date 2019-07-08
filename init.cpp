@@ -195,6 +195,9 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	string hf_tnc_port = readconfig.Get("hf_tnc", "port", "/dev/ttyS2");
 	tnc.hf_kissport = readconfig.GetInteger("hf_tnc", "kissport", 1);
 	unsigned int hf_tnc_baud = readconfig.GetInteger("hf_tnc", "baud", 9600);
+	tempInt1 = readconfig.GetInteger("vhf_tnc", "led_pin", 65536);
+	tempInt2 = readconfig.GetInteger("vhf_tnc", "led_pin2", 65536);
+	if (tempInt1 < 65536) tnc.led = new gpio::Led(tempInt1, tempInt2);
  // gps config
 	gps::enabled = readconfig.GetBoolean("gps", "enable", false);
 	tempInt1 = readconfig.GetInteger("gps", "led_pin", 65536);
