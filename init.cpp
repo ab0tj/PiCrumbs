@@ -144,7 +144,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 				else if (strcmp(optarg, "fh") == 0) debug.fh = true;
 				else if (strcmp(optarg, "hl") == 0)
 				{
-					HAMLIB_API::rig_set_debug(RIG_DEBUG_TRACE);
+					//HAMLIB_API::rig_set_debug(RIG_DEBUG_TRACE);
 					debug.hl = true;
 				}
 				else if (strcmp(optarg, "is") == 0) debug.curl = true;

@@ -59,7 +59,7 @@ namespace beacon
 	extern unsigned short int sb_turn_slope;	// SmartBeaconing turn slope
 	extern unsigned int static_rate;			// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 	extern unsigned int status_rate;			// how often to send status report
-	extern unsigned int status_path;			// which path to use for status reports
+	extern int status_path;						// which path to use for status reports
     extern string temp_file;					// file to get temperature info from, blank to disable
     extern bool temp_f;							// temp units: false for C, true for F
 	extern bool tempInComment;					// should we send temperature in the position comment?

@@ -42,7 +42,7 @@ namespace beacon
 	unsigned short int sb_turn_slope; 	// SmartBeaconing turn slope
 	unsigned int static_rate;			// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 	unsigned int status_rate;
-	unsigned int status_path;
+	int status_path;
     string temp_file;					// file to get temperature info from, blank to disable
     bool temp_f;						// temp units: false for C, true for F
 	string adc_file;					// file to get ADC value from, blank to disable
@@ -170,26 +170,29 @@ namespace beacon
 		if (adcInComment)
 		{
 			float volts = get_voltage();
-			if (volts != -1) buff << volts << "V ";
+			if (volts != -1) buff << volts << "V";
 		}
 
 		if (tempInComment) {	// user specified a temp sensor is available
 			int t = get_temp();
 			if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
+				if (adcInComment) buff << ' ';
 				buff << t;
 				if (temp_f) {
-					buff << "F ";
+					buff << "F";
 				} else {
-					buff << "C ";
+					buff << "C";
 				}
 			}
 		}
+
+		if (adcInComment || tempInComment) buff << ' ';
 
 		if (path.usePathComment)
 		{
 			buff << path.comment;
 		}
-		else
+		else if (comment.compare("") != 0)
 		{
 			buff << comment;
 		}
@@ -199,6 +202,13 @@ namespace beacon
 
 	bool send_status()
 	{
+		aprspath& path = aprs_paths[status_path];
+		if (path.enablePin != NULL && !path.enablePin->read())
+		{
+			if (debug.fh) printf("FH_DEBUG: Status path disabled via GPIO\n");
+			return false;
+		}
+
 		stringstream buff;
 		char* zulu = new char[9];
 		time_t rawtime;
@@ -215,17 +225,18 @@ namespace beacon
 		if (adcInStatus)
 		{
 			float volts = get_voltage();
-			if (volts != -1) buff << volts << "V ";
+			if (volts != -1) buff << volts << "V";
 		}
 
 		if (tempInStatus) {	// user specified a temp sensor is available
 			int t = get_temp();
 			if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
+				if (adcInStatus) buff << ' ';
 				buff << t;
 				if (temp_f) {
-					buff << "F ";
+					buff << "F";
 				} else {
-					buff << "C ";
+					buff << "C";
 				}
 			}
 		}
@@ -341,10 +352,12 @@ namespace beacon
 		}
 
 		if (radio_retune) {
-			set_radio_freq(radio_freq);				// return radio to previous frequency
-			set_radio_mode(radio_mode);				// return radio to previous mode
+			tune_radio(radio_freq, radio_mode);
 		}
-		else if (path != 0) tune_radio(aprs_paths[0].freq, aprs_paths[0].mode);
+		else if (path != status_path)
+		{
+			tune_radio(aprs_paths[status_path].freq, aprs_paths[status_path].mode);
+		}
 
 		return path;
 	}

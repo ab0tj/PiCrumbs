@@ -42,7 +42,7 @@ rmode_t get_radio_mode() {	// get mode from radio
 	return RIG_MODE_NONE;	// gotta return something
 }	// END OF 'get_radio_mode'
 
-bool set_radio_freq(freq_t f) {	// set radio to specified frequency
+/*bool set_radio_freq(freq_t f) {	// set radio to specified frequency
 	try {
 		hamlib.radio->setFreq(Hz(f));
 	} catch (const RigException& e) {
@@ -60,7 +60,7 @@ bool set_radio_mode(rmode_t m) {	// set radio to specified mode
                 return false;
         }
         return true;
-}       // END OF 'set_radio_mode'
+}       // END OF 'set_radio_mode'*/
 
 void hamlib_close()
 {

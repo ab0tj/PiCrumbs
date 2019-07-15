@@ -13,8 +13,6 @@ using namespace std;
 bool tune_radio(freq_t, rmode_t);
 freq_t get_radio_freq();
 rmode_t get_radio_mode();
-bool set_radio_freq(freq_t);
-bool set_radio_mode(rmode_t);
 void hamlib_close();
 
 // STRUCTS
