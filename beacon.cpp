@@ -89,13 +89,6 @@ namespace beacon
 		int textSz = text.length();
 		stringstream buff;
 
-		char zulu[8];
-		time_t rawtime;
-		struct tm* timeinfo;
-		time(&rawtime);
-		timeinfo = gmtime(&rawtime);
-		strftime(zulu, 8, "%d%H%Mz", timeinfo);
-
 		for (int i=0; i<textSz; i++)
 		{
 			if (text[i] == '{')
@@ -104,21 +97,27 @@ namespace beacon
 				switch (text[i+1])
 				{
 					case 'a':   // Scaled ADC value
-						buff << fround(adcs[p]->read(1), 2);
+						if (adcs[p] != NULL) buff << fround(adcs[p]->read(1), 2);
 						i += 3;
 						break;
 
 					case 'r':   // Raw ADC value
-						buff << adcs[p]->read(0);
+						if (adcs[p] != NULL) buff << adcs[p]->read(0);
 						i += 3;
 						break;
 
 					case 't':   // Temperature value
-						buff << fround(tempSensor->read(), tempSensor->precision) << tempSensor->get_unit();
+						if (tempSensor != NULL) buff << fround(tempSensor->read(), tempSensor->precision) << tempSensor->get_unit();
 						i += 2;
 						break;
 
 					case 'z':   // Timestamp
+						char zulu[8];
+						time_t rawtime;
+						struct tm* timeinfo;
+						time(&rawtime);
+						timeinfo = gmtime(&rawtime);
+						strftime(zulu, 8, "%d%H%Mz", timeinfo);
 						buff << zulu;
 						i += 2;
 						break;
@@ -141,7 +140,7 @@ namespace beacon
 		path.attempt++;					// update stats
 		
 		float speed = gps.speed * 1.94384;	// convert m/s to knots
-		uint alt = gps.alt * 3.28084;	// convert meters to feet
+		uint alt = gps.alt * 3.28084;		// convert meters to feet
 		char* pos = new char[21];
 		if (compress) {			// build compressed position report as an array of bytes
 			pos[0] = '!';		// realtime position, no messaging

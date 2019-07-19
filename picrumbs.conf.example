@@ -153,7 +153,6 @@ pass = -1
 ; you can specify multiple [path*] sections here. each will be tried, in order.
 ; if your station is not repeated by a digi, the next path will be tried.
 ; only the last path should be used for HF, as there is no way to know if a HF path worked.
-; the last path (or a single path) will not be checked to see if we were repeated.
 ; you can also specify an internet path to use with a tethered cell phone, etc.
 ; if the aprs servers cannot be contacted, we will move on to the next path.
 
