@@ -91,24 +91,25 @@ namespace beacon
 
 		for (int i=0; i<textSz; i++)
 		{
-			if (text[i] == '{')
+			if (text[i] == '|') continue;	// APRS spec says comments cannot contain ~ or |
+			if (text[i] == '~')
 			{
 				int p = text[i+2] - '0';
 				switch (text[i+1])
 				{
 					case 'a':   // Scaled ADC value
 						if (adcs[p] != NULL) buff << fround(adcs[p]->read(1), 2);
-						i += 3;
+						i += 2;
 						break;
 
 					case 'r':   // Raw ADC value
 						if (adcs[p] != NULL) buff << adcs[p]->read(0);
-						i += 3;
+						i += 2;
 						break;
 
 					case 't':   // Temperature value
 						if (tempSensor != NULL) buff << fround(tempSensor->read(), tempSensor->precision) << tempSensor->get_unit();
-						i += 2;
+						i += 1;
 						break;
 
 					case 'z':   // Timestamp
@@ -119,11 +120,10 @@ namespace beacon
 						timeinfo = gmtime(&rawtime);
 						strftime(zulu, 8, "%d%H%Mz", timeinfo);
 						buff << zulu;
-						i += 2;
+						i += 1;
 						break;
 
 					default:
-						buff << '{';
 						break;
 				}
 			}

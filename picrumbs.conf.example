@@ -73,11 +73,12 @@ symbol_table = /
 ; symbol: symbol char from table
 symbol = -
 ; comment: keep this short to save on-air bandwidth and increase reliabiltiy
+; comments can contain any printable characters except ~ and |
 ; you can add tags to include extra information:
-;	{a0}..{a7} scaled ADC value
-;	{t} temperature sensor value
-;	{r0}..{r7} raw ADC value
-;	{z} timestamp (zulu)
+;	~a0..~a7 = scaled ADC value
+;	~t = temperature sensor value
+;	~r0..~r7 = raw ADC value
+;	~z = timestamp (zulu)
 comment = PiCrumbs
 ; static_rate: seconds between beacons, 0 to use SmartBeaconing
 static_rate = 0
@@ -98,7 +99,7 @@ send_course = true
 send_alt = false
 ; status: text to send in status report (default blank)
 ; same format as comments
-; status = {z}PiCrumbs
+; status = ~zPiCrumbs
 ; status_rate: how often to send status reports, in seconds.
 ; zero to disable (default)
 status_rate = 0
