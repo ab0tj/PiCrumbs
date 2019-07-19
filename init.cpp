@@ -122,6 +122,7 @@ int open_port(string name, string port, int baud, bool blocking, bool canon) {		
 void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	int tempInt, tempInt1, tempInt2;
 	int tempBool;
+	string tempString;
 	string configfile = "/etc/picrumbs.conf";
 	HAMLIB_API::rig_set_debug(RIG_DEBUG_NONE);	// tell hamlib to STFU unless asked
 
@@ -215,16 +216,13 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	beacon::send_speed = readconfig.GetBoolean("beacon", "send_speed", beacon::compress && !beacon::send_alt);
 	beacon::symbol_table = readconfig.Get("beacon", "symbol_table", "/")[0];
 	beacon::symbol_char = readconfig.Get("beacon", "symbol", "/")[0];
-	beacon::temp_file = readconfig.Get("beacon", "temp_file", "");
-	beacon::temp_f = readconfig.GetBoolean("beacon", "temp_f", false);
-	beacon::tempInStatus = readconfig.GetBoolean("beacon", "temp_in_status", false);
-	beacon::tempInComment = readconfig.GetBoolean("beacon", "temp_in_comment", !beacon::tempInStatus);
-	if (beacon::temp_file.compare("") == 0) beacon::tempInStatus = beacon::tempInComment = false;
-	beacon::adc_file = readconfig.Get("beacon", "adc_file", "");
-	beacon::adc_scale = atof(readconfig.Get("beacon", "adc_scale", "1").c_str());
-	beacon::adcInStatus = readconfig.GetBoolean("beacon", "adc_in_status", false);
-	beacon::adcInComment = readconfig.GetBoolean("beacon", "adc_in_comment", !beacon::adcInStatus);
-	if (beacon::adc_file.compare("") == 0) beacon::adcInStatus = beacon::adcInComment = false;
+	tempString = readconfig.Get("beacon", "temp_file", "");
+	tempInt = readconfig.Get("beacon", "temp_unit", "C").c_str()[0];
+	if (tempString.length() > 0)
+	{
+		beacon::tempSensor = new sensor::Temp(tempString, tempInt);
+		beacon::tempSensor->precision = readconfig.GetInteger("beacon", "temp_precision", 0);
+	}
 	beacon::static_rate = readconfig.GetInteger("beacon", "static_rate", 900);
 	beacon::sb_low_speed = readconfig.GetInteger("beacon", "sb_low_speed", 5);
 	beacon::sb_low_rate = readconfig.GetInteger("beacon", "sb_low_rate", 1800);
@@ -244,6 +242,25 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		fprintf(stderr, "Configuration error: Compressed beacon supports course and speed or altitude, but not both.\n");
 		exit(EXIT_FAILURE);
 	}
+
+ // ADC configs
+	stringstream adcsect;
+	for (int i=0; i<8; i++)
+	{
+		adcsect << "adc" << i;
+		string adc_s = adcsect.str();
+		if (readconfig.HasSection(adc_s))
+		{
+			tempString = readconfig.Get(adc_s, "file", "");
+			if (tempString.length() > 0)
+			{
+				beacon::adcs[i] = new sensor::Adc(tempString, readconfig.GetReal(adc_s, "scale", 1));
+			}
+		}
+
+		adcsect.str(string());
+	}
+
  // sat tracking config
 	predict.path = readconfig.Get("predict", "path", "");
 	predict.tlefile = readconfig.Get("predict", "tlefile", "~/.predict/predict.tle");
@@ -265,7 +282,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
  // path config
 	unsigned int pathidx = 1;
 	stringstream pathsect;
-	pathsect << "path" << "1";
+	pathsect << "path1";
 
 	map<string, rmode_t> modemap;
 	modemap["FM"] = RIG_MODE_FM;

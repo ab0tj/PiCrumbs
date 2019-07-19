@@ -1,12 +1,9 @@
-#include "beacon.h"
 #include <string>
 #include <cmath>
 #include <cstdio>
-#include <sstream>
-#include <fstream>
-#include <unistd.h>
-#include <string.h>
 #include <ctime>
+#include <sstream>
+#include <unistd.h>
 #include "hamlib.h"
 #include "gpio.h"
 #include "http.h"
@@ -14,6 +11,7 @@
 #include "tnc.h"
 #include "console.h"
 #include "version.h"
+#include "beacon.h"
 #include "psk.h"
 #include "gps.h"
 #include "debug.h"
@@ -43,18 +41,9 @@ namespace beacon
 	unsigned int static_rate;			// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 	unsigned int status_rate;
 	int status_path;
-    string temp_file;					// file to get temperature info from, blank to disable
-    bool temp_f;						// temp units: false for C, true for F
-	string adc_file;					// file to get ADC value from, blank to disable
-	float adc_scale;					// ADC scaling value
-	bool tempInComment;
-	bool tempInStatus;
-	bool adcInComment;
-	bool adcInStatus;
 	gpio::Led* led;						// LED to display beacon status
-
-	int get_temp();
-	float get_voltage();
+	sensor::Adc* adcs[8];
+	sensor::Temp* tempSensor;
 
 	bool send_packet(aprspath& path, string payload)
 	{
@@ -87,6 +76,61 @@ namespace beacon
 			default:
 				return false;
 		}
+	}
+
+	float fround(float f, uint digits)
+	{
+		if (digits == 0) return round(f);
+		return float(int(f * (10 * digits) + 0.5)) / (digits * 10);
+	}
+
+	string parseComment(string text)
+	{
+		int textSz = text.length();
+		stringstream buff;
+
+		char zulu[8];
+		time_t rawtime;
+		struct tm* timeinfo;
+		time(&rawtime);
+		timeinfo = gmtime(&rawtime);
+		strftime(zulu, 8, "%d%H%Mz", timeinfo);
+
+		for (int i=0; i<textSz; i++)
+		{
+			if (text[i] == '{')
+			{
+				int p = text[i+2] - '0';
+				switch (text[i+1])
+				{
+					case 'a':   // Scaled ADC value
+						buff << fround(adcs[p]->read(1), 2);
+						i += 3;
+						break;
+
+					case 'r':   // Raw ADC value
+						buff << adcs[p]->read(0);
+						i += 3;
+						break;
+
+					case 't':   // Temperature value
+						buff << fround(tempSensor->read(), tempSensor->precision) << tempSensor->get_unit();
+						i += 2;
+						break;
+
+					case 'z':   // Timestamp
+						buff << zulu;
+						i += 2;
+						break;
+
+					default:
+						buff << '{';
+						break;
+				}
+			}
+			else buff << text[i];
+		}
+		return buff.str();
 	}
 
 	bool send_pos_report(aprspath& path = aprs_paths[0]) {			// exactly what it sounds like
@@ -166,84 +210,18 @@ namespace beacon
 			}
 		}
 		delete[] pos;
-		
-		if (adcInComment)
-		{
-			float volts = get_voltage();
-			if (volts != -1) buff << volts << "V";
-		}
-
-		if (tempInComment) {	// user specified a temp sensor is available
-			int t = get_temp();
-			if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
-				if (adcInComment) buff << ' ';
-				buff << t;
-				if (temp_f) {
-					buff << "F";
-				} else {
-					buff << "C";
-				}
-			}
-		}
-
-		if (adcInComment || tempInComment) buff << ' ';
 
 		if (path.usePathComment)
 		{
-			buff << path.comment;
+			buff << parseComment(path.comment);
 		}
 		else if (comment.compare("") != 0)
 		{
-			buff << comment;
+			buff << parseComment(comment);
 		}
 		
 		return send_packet(path, buff.str());
 	}	// END OF 'send_pos_report'
-
-	bool send_status()
-	{
-		aprspath& path = aprs_paths[status_path];
-		if (path.enablePin != NULL && !path.enablePin->read())
-		{
-			if (debug.fh) printf("FH_DEBUG: Status path disabled via GPIO\n");
-			return false;
-		}
-
-		stringstream buff;
-		char* zulu = new char[9];
-		time_t rawtime;
-		struct tm* timeinfo;
-		time(&rawtime);
-		timeinfo = gmtime(&rawtime);
-		strftime(zulu, 9, ">%d%H%Mz", timeinfo);
-		buff << zulu;
-		delete zulu;
-
-		buff << status;
-		if (status.compare("") != 0 && (adcInStatus || tempInStatus)) buff << ' ';
-
-		if (adcInStatus)
-		{
-			float volts = get_voltage();
-			if (volts != -1) buff << volts << "V";
-		}
-
-		if (tempInStatus) {	// user specified a temp sensor is available
-			int t = get_temp();
-			if (t > -274 && t < 274) {		// don't bother sending the temp if we're violating the laws of physics or currently on fire.
-				if (adcInStatus) buff << ' ';
-				buff << t;
-				if (temp_f) {
-					buff << "F";
-				} else {
-					buff << "C";
-				}
-			}
-		}
-
-		tune_radio(aprs_paths[status_path].freq, aprs_paths[status_path].mode);
-		return send_packet(aprs_paths[status_path], buff.str());
-	}
 
 	bool wait_for_digi() {
 		int timeout = 6;
@@ -346,8 +324,19 @@ namespace beacon
 
 			case Status:
 				path = status_path;
-				send_status();
-				sleep(5);	// give time for the packet to transmit
+				if (aprs_paths[path].enablePin != NULL && !aprs_paths[path].enablePin->read())
+				{
+					if (debug.fh) printf("FH_DEBUG: Status path disabled via GPIO\n");
+					path = -1;
+					break;
+				}
+				
+				if (tune_radio(aprs_paths[path].freq, aprs_paths[path].mode))
+				{
+					send_packet(aprs_paths[status_path], ">" + parseComment(status));
+					sleep(5);	// give time for the packet to transmit
+				}
+				else path = -1;
 				break;
 		}
 
@@ -360,58 +349,5 @@ namespace beacon
 		}
 
 		return path;
-	}
-
-	/*int get_w1_temp() {	// get temperature from one-wire sensor
-		ifstream tempfile;
-		string line;
-		int temp = 0;
-		tempfile.open(temp_file.c_str());
-		if (!tempfile.is_open()) return -65535;		// return absurdly low value so we know it's invalid.
-		getline(tempfile, line);
-		if (line.substr(36,3).compare("YES") == 0) {
-			getline(tempfile, line, '=');
-			getline(tempfile, line);
-			temp = atoi(line.c_str());
-			if (temp_f) temp = 1.8*temp+32000;
-			temp /= 1000;
-		} else temp = -65535;
-		tempfile.close();
-		return temp;
-	} // END OF 'get_w1_temp'*/
-
-	int get_temp()	// get temperature from hwmon formatted file
-	{
-		ifstream tempfile;
-		string line;
-		tempfile.open(temp_file.c_str());
-		if (!tempfile.is_open()) 
-		{
-			fprintf(stderr, "Error opening temperature file: %s\n", strerror(errno));
-			return -65535;		// return absurdly low value so we know it's invalid.
-		}
-		getline(tempfile, line);
-		int temp = atoi(line.c_str());
-		if (temp_f) temp = 1.8*temp+32000;
-		temp /= 1000;
-		tempfile.close();
-		return temp;
-	}
-
-	float get_voltage()	// get voltage from adc
-	{
-		ifstream adcfile;
-		string line;
-		adcfile.open(adc_file.c_str());
-		if (!adcfile.is_open())
-		{
-			fprintf(stderr, "Error opening ADC file: %s\n", strerror(errno));
-			return -1;		// can't have negative voltage...
-		}
-		getline(adcfile, line);
-		float volts = atoi(line.c_str());
-		volts *= adc_scale;
-		adcfile.close();
-		return volts;
 	}
 }

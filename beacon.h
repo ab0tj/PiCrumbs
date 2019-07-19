@@ -9,6 +9,7 @@ using namespace std;
 #include <vector>
 #include <rigclass.h>
 #include "gpio.h"
+#include "sensor.h"
 
 namespace beacon
 {
@@ -60,15 +61,9 @@ namespace beacon
 	extern unsigned int static_rate;			// how often (in seconds) to send a beacon if not using gps, set to 0 for SmartBeaconing
 	extern unsigned int status_rate;			// how often to send status report
 	extern int status_path;						// which path to use for status reports
-    extern string temp_file;					// file to get temperature info from, blank to disable
-    extern bool temp_f;							// temp units: false for C, true for F
-	extern bool tempInComment;					// should we send temperature in the position comment?
-	extern bool tempInStatus;					// should we send temperature in the status text?
-	extern string adc_file;						// file to get ADC value from, blank to disable
-	extern float adc_scale;						// ADC scaling value
-	extern bool adcInComment;					// should we send adc value int the position comment?
-	extern bool adcInStatus;					// shoudl we send sdc value in the status text?
 	extern gpio::Led* led;						// LED to display beacon status
+	extern sensor::Adc* adcs[8];				// ADC objects that can be added to status or comment
+	extern sensor::Temp* tempSensor;			// Temperature sensor that can be added to beacons
 
 	bool send_pos_report(aprspath&);
 	int send(BeaconType);

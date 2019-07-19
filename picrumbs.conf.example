@@ -73,6 +73,11 @@ symbol_table = /
 ; symbol: symbol char from table
 symbol = -
 ; comment: keep this short to save on-air bandwidth and increase reliabiltiy
+; you can add tags to include extra information:
+;	{a0}..{a7} scaled ADC value
+;	{t} temperature sensor value
+;	{r0}..{r7} raw ADC value
+;	{z} timestamp (zulu)
 comment = PiCrumbs
 ; static_rate: seconds between beacons, 0 to use SmartBeaconing
 static_rate = 0
@@ -92,7 +97,8 @@ send_speed = true
 send_course = true
 send_alt = false
 ; status: text to send in status report (default blank)
-status =
+; same format as comments
+; status = {z}PiCrumbs
 ; status_rate: how often to send status reports, in seconds.
 ; zero to disable (default)
 status_rate = 0
@@ -100,21 +106,22 @@ status_rate = 0
 status_path = 1
 ; temp_file: path to file containing a temperature value in millicelsius.
 ; temp_file = /sys/class/hwmon/hwmon0/temp1_input
-; temp_f: temperature units. false for C, true for F
-temp_f = false
-; temp_in_comment: send temperature value in position comment (default true)
-temp_in_comment = true
-; temp_in_status: send temperature value in status report (default false)
-temp_in_status = false
-; adc_file: path to a file containing an ADC's raw value
-; adc_file =  /sys/bus/iio/devices/iio:device0/in_voltage0_raw
-; adc_scale: ADC value will be multiplied by this value to get a voltage reading
-adc_scale = 0.01
-adc_in_comment = true;
-adc_in_status = false;
+; temp_unit: temperature unit. C=Celsius, F=Fahrenheit, K=Kelvin
+temp_unit = C
+; temp_precision: number of digits to show after the decimal position
+; default is 0
+temp_precision = 0
 ; status LED, same as GPS LED.
 ; led_pin =
 ; led_pin2 =
+
+[adc0]
+; ADCs - max of 8 (adc0-adc7)
+; value can be reported in beacon messages
+; file: path to a file containing the ADC's raw value (disabled if not defined)
+; file =  /sys/bus/iio/devices/iio:device0/in_voltage0_raw
+; scale: ADC value will be multiplied by this value to get a voltage reading
+scale = 0.01
 
 [predict]
 ; PiCrumbs uses PREDICT to check satellite elevation.
@@ -172,6 +179,7 @@ via = WIDE1-1,WIDE2-1
 ; holdoff: limit use of this path to at least this interval, in seconds.
 holdoff = 10
 ; comment: if included, this replaces the default beacon comment text for this path only
+; see beacon section for more details
 comment = 2M Path
 ; enablepin: GPIO pin (wiringPi numbering) to check to see if this path is enabled
 ; this could be hooked up to a switch, for example. negative pin number means active low
