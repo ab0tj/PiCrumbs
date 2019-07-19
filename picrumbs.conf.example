@@ -64,6 +64,16 @@ expander_pinbase = 100
 ; psk_ptt: gpio pin to use for PTT while transmitting PSK63
 psk_ptt_pin = -7
 
+; GPIO Pins
+; [pin0] through [pin7] can be defined here in order to be able to include
+; their value in the comment or status text. same pin numbering as those above
+[pin0]
+; pin = 9
+pullup = false
+; active_text and inactive_text: text to be added to beacon based on GPIO state
+active_text = 1
+inactive_text = 0
+
 ; Beacon Params:
 [beacon]
 ; compressed: compress beacon to save on-air bandwidth and increase reliability
@@ -76,8 +86,9 @@ symbol = -
 ; comments can contain any printable characters except ~ and |
 ; you can add tags to include extra information:
 ;	~a0..~a7 = scaled ADC value
-;	~t = temperature sensor value
 ;	~r0..~r7 = raw ADC value
+;   ~p0..~p7 - GPIO pin value
+;	~t = temperature sensor value
 ;	~z = timestamp (zulu)
 comment = PiCrumbs
 ; static_rate: seconds between beacons, 0 to use SmartBeaconing

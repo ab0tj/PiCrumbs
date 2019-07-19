@@ -34,6 +34,9 @@ namespace gpio
 		if (mode == OUTPUT) digitalWrite(pin, active_low);	// set initial value
 		pinMode(pin, mode);
 
+		activeText = "";
+		inactiveText = "";
+
 		if (debug.verbose) printf("Initialized GPIO pin %d (%sput, active %s, pullup %s)\n", pin, mode == OUTPUT ? "out" : "in", active_low ? "low" : "high", pullup ? "on" : "off");
 	}
 
@@ -68,7 +71,7 @@ namespace gpio
 
 		if (debug.verbose) printf("LED at pin %d is %sbicolor\n", pin1, biColor ? "": "not ");
 
-		set(LedOff, NoBlink, LedOff);
+		set(LedOff, Solid, LedOff);
 		blinkState = false;
 		leds.push_back(this);
 	}
@@ -85,16 +88,16 @@ namespace gpio
 
 		switch (blink)
 		{
-			case NoBlink:
+			case Solid:
 				break;
 
 			case BlinkOnce:
-			case BlinkOn:
+			case Blink:
 				if (blinkState)
 				{
 					blinkState = false;
 					setPins(color);
-					if (blink == BlinkOnce) blink = NoBlink;
+					if (blink == BlinkOnce) blink = Solid;
 				}
 				else
 				{

@@ -64,6 +64,7 @@ namespace beacon
 	extern gpio::Led* led;						// LED to display beacon status
 	extern sensor::Adc* adcs[8];				// ADC objects that can be added to status or comment
 	extern sensor::Temp* tempSensor;			// Temperature sensor that can be added to beacons
+	extern gpio::Pin* pins[8];					// GPIO pins that can be added to beacons
 
 	bool send_pos_report(aprspath&);
 	int send(BeaconType);

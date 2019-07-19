@@ -244,21 +244,33 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	}
 
  // ADC configs
-	stringstream adcsect;
+	stringstream sect;
 	for (int i=0; i<8; i++)
 	{
-		adcsect << "adc" << i;
-		string adc_s = adcsect.str();
-		if (readconfig.HasSection(adc_s))
+		sect << "adc" << i;
+		string adc_s = sect.str();
+		tempString = readconfig.Get(adc_s, "file", "");
+		if (tempString.length() > 0)
 		{
-			tempString = readconfig.Get(adc_s, "file", "");
-			if (tempString.length() > 0)
-			{
-				beacon::adcs[i] = new sensor::Adc(tempString, readconfig.GetReal(adc_s, "scale", 1));
-			}
+			beacon::adcs[i] = new sensor::Adc(tempString, readconfig.GetReal(adc_s, "scale", 1));
 		}
+		sect.str(string());
+	}
 
-		adcsect.str(string());
+ // GPIO pin configs
+	for (int i=0; i<8; i++)
+	{
+		sect << "pin" << i;
+		string pin_s = sect.str();
+		tempInt = readconfig.GetInteger(pin_s, "pin", 65536);
+		if (tempInt < 65536)
+		{
+			tempBool = readconfig.GetBoolean(pin_s, "pullup", false);
+			beacon::pins[i] = new gpio::Pin(tempInt, INPUT, tempBool);
+			beacon::pins[i]->activeText.assign(readconfig.Get(pin_s, "active_text", "1"));
+			beacon::pins[i]->inactiveText.assign(readconfig.Get(pin_s, "inactive_text", "0"));
+		}
+		sect.str(string());
 	}
 
  // sat tracking config

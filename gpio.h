@@ -23,8 +23,11 @@ namespace gpio
             bool active_low;
 
         public:
+            string activeText;
+            string inactiveText;
             void set(bool);
             bool read();
+            inline string read_str() { return read() ? activeText : inactiveText; }
             Pin(int, int, bool);
             ~Pin();
     };

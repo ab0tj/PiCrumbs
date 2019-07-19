@@ -44,6 +44,7 @@ namespace beacon
 	gpio::Led* led;						// LED to display beacon status
 	sensor::Adc* adcs[8];
 	sensor::Temp* tempSensor;
+	gpio::Pin* pins[8];
 
 	bool send_packet(aprspath& path, string payload)
 	{
@@ -99,6 +100,11 @@ namespace beacon
 				{
 					case 'a':   // Scaled ADC value
 						if (adcs[p] != NULL) buff << fround(adcs[p]->read(1), 2);
+						i += 2;
+						break;
+
+					case 'p':	// GPIO pin value
+						if (pins[p] != NULL) buff << pins[p]->read_str();
 						i += 2;
 						break;
 
