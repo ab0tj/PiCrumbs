@@ -332,16 +332,13 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		string beacon_via_str = readconfig.Get(path_s, "via", "");	// now we get to parse the via paramater
 
 		if (beacon_via_str.length() > 0) {	// parse via param, skip if no via was defined
-			int current;
 			int next = -1;
-			string this_call;
-			int this_ssid;
 			do {
-				current = next + 1;
+				int current = next + 1;
 				next = beacon_via_str.find_first_of(",", current);
 				string call = beacon_via_str.substr(current, next-current);
-				this_call = get_call(call);
-				this_ssid = get_ssid(call);
+				string this_call = get_call(call);
+				int this_ssid = get_ssid(call);
 				if (this_call.length() > 6) {
 					fprintf(stderr,"VIA: Station callsign must be 6 characters or less.\n");
 					exit (EXIT_FAILURE);

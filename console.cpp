@@ -95,7 +95,7 @@ namespace console
 				if (param.compare("")) {	// compare returns 0 on match
 					string temp_call = get_call(param);
 					unsigned char temp_ssid = get_ssid(param);
-					if ((temp_call.length() > 6) || ((temp_ssid < 0) || (temp_ssid > 15))) {
+					if ((temp_call.length() > 6) || (temp_ssid > 15)) {
 						conPrint("Error: Invalid callsign or ssid.\r\n");
 					} else {
 						beacon::mycall = temp_call;

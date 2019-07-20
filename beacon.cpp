@@ -177,7 +177,7 @@ namespace beacon
 			{
 				pos[11] = pos[12] = 33;
 				if (send_course) pos[11] += gps.hdg / 4;
-				if (send_speed) pos[12] += log(speed+1)/log(1.08);
+				if (send_speed) pos[12] += log1p(speed)/log(1.08);
 				pos[13] = 0x47;			// set "T" byte
 			}
 			else	// send altitude

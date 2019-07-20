@@ -70,9 +70,12 @@ namespace gpio
 		else biColor = false;
 
 		if (debug.verbose) printf("LED at pin %d is %sbicolor\n", pin1, biColor ? "": "not ");
-
-		set(LedOff, Solid, LedOff);
+		
+		color = LedOff;
+		blink = Solid;
+		blinkColor = LedOff;
 		blinkState = false;
+		setPins(LedOff);
 		leds.push_back(this);
 	}
 

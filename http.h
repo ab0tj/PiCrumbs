@@ -12,7 +12,7 @@ using namespace std;
 
 // FUNCTIONS
 size_t curlnull( char *ptr, size_t size, size_t nmemb, void *userdata);	// empty function to make libcurl happy
-bool send_aprsis_http(const char*, int, const char*, int, vector<string>, vector<char>, string, vector<bool> = vector<bool>());
+bool send_aprsis_http(const char*, int, const char*, int, vector<string>, vector<char>, string&, vector<bool> = vector<bool>());
 
 // STRUCTS
 struct HttpStruct

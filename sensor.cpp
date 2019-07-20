@@ -4,10 +4,9 @@
 
 namespace sensor
 {
-    Temp::Temp(string f, char u)
+    Temp::Temp(string& f, char u): fileName(f), unit (u)
     {
-        fileName = f;
-        unit = u;
+		precision = 0;
     }
 
     float Temp::read()
@@ -26,12 +25,6 @@ namespace sensor
         else if (unit == 'K') val += 274.15;
 		tempfile.close();
 		return val;
-    }
-
-    Adc::Adc(string f, float s)
-    {
-        fileName = f;
-        scale = s;
     }
 
     float Adc::read(int s)

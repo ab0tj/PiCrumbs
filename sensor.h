@@ -14,7 +14,7 @@ namespace sensor
             float scale;					// ADC scaling value
 
         public:
-            Adc(string f, float s);
+            Adc(string& f, float s): fileName(f), scale(s) {};
             float read(int scale);
     };
 
@@ -26,7 +26,7 @@ namespace sensor
 
         public:
             unsigned int precision;
-            Temp(string f, char u);
+            Temp(string& f, char u);
             float read();
             inline char get_unit() { return unit; };
     };

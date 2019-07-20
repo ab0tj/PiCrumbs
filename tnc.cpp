@@ -174,7 +174,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 
 	if ((source.callsign.compare(beacon::mycall.substr(0,6)) == 0) && (source.ssid == beacon::myssid || beacon::myssid > 15) && payload.substr(0,1).compare("!") == 0)
 	{
-		if (debug.tnc) printf("TNC_DEBUG: Resetting last_heard. (was %i)\n", beacon::last_heard);
+		if (debug.tnc) printf("TNC_DEBUG: Resetting last_heard. (was %u)\n", beacon::last_heard);
 		beacon::last_heard = 0;	// clear last_heard if we were successfully digi'd.
 	}
 } // END OF 'process_ax25_frame'

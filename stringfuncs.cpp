@@ -28,7 +28,7 @@ unsigned char get_ssid(string s) {
 	}
 }
 
-bool isNotPrintable (char c) 
+inline bool isNotPrintable (char c) 
 {  
     return !isprint(c);   
 } 

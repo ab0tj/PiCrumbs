@@ -10,7 +10,7 @@ size_t curlnull( char *ptr, size_t size, size_t nmemb, void *userdata) {        
         return nmemb;
 }
 
-bool send_aprsis_http(const char* source, int source_ssid, const char* destination, int destination_ssid, vector<string> via, vector<char>via_ssids, string payload, vector<bool>via_hbits) {	// send an APRS packet via APRS-IS
+bool send_aprsis_http(const char* source, int source_ssid, const char* destination, int destination_ssid, vector<string> via, vector<char>via_ssids, string& payload, vector<bool>via_hbits) {	// send an APRS packet via APRS-IS
 	CURL *curl;
 	CURLcode res;
 	struct curl_slist *headerlist = NULL;

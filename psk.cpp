@@ -28,11 +28,10 @@ class SampleGenerator {
 };
 
 int gcd(int a, int b) {
-  int c;
   while (a != 0) {
-     c = a;
-	 a = b % a;
-	 b = c;
+	int c = a;
+	a = b % a;
+	b = c;
   }
   return b;
 }
@@ -150,7 +149,8 @@ void send_psk_aprs(unsigned int freq, unsigned char vol, gpio::Pin* ptt_pin, con
 	
 	// Compute the MODBUS RTU CRC (stole this one from http://www.ccontrolsys.com/w/How_to_Compute_the_Modbus_RTU_Message_CRC)
 	uint16_t crc = 0xFFFF;
-	const char* buf = buff.str().c_str();
+	string s = buff.str();
+	const char* buf = s.c_str();
 	for (unsigned int pos = 0; pos < strlen(buf); pos++) {
 		crc ^= (uint16_t)buf[pos];          // XOR byte into least sig. byte of crc
  
