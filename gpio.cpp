@@ -19,7 +19,7 @@ namespace gpio
 	void writeVal(string fileName, T val)
 	{
 		ofstream fs;
-		fs.open(fileName.c_str());
+		fs.open(fileName);
 		if (fs.fail())
 		{
 			cerr << "Failed to open " << fileName << ':' << strerror(errno) << '\n';
@@ -50,21 +50,9 @@ namespace gpio
 		struct stat st;
 		if (stat(fileName.c_str(), &st) != 0) writeVal<int>("/sys/class/gpio/export", pinNum);
 
-		fileName_s << "/active_low";
-		fileName = fileName_s.str();
-		writeVal<int>(fileName, active_low);
-
-		fileName_s.str("");
-		fileName_s.clear();
-		fileName_s << "/sys/class/gpio/gpio" << pinNum << "/direction";
-		fileName = fileName_s.str();
-		writeVal<string>(fileName, mode == OUTPUT ? "out" : "in");
-
-		fileName_s.str("");
-		fileName_s.clear();
-		fileName_s << "/sys/class/gpio/gpio" << pinNum << "/value";
-		fileName = fileName_s.str();
-		fs.open(fileName, mode == OUTPUT ? ios::out : ios::in);
+		writeVal<int>(fileName + "/active_low", active_low);
+		writeVal<string>(fileName + "/direction", mode == OUTPUT ? "out" : "in");
+		fs.open(fileName + "/value", mode == OUTPUT ? ios::out : ios::in);
 
 		if (fs.fail())
 		{

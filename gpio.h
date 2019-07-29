@@ -28,7 +28,7 @@ namespace gpio
         public:
             string activeText;
             string inactiveText;
-            inline bool read() { fs.seekp(0); return fs.get() == '1'; }
+            inline bool read() { fs.seekg(0); return fs.get() == '1'; }
             inline string read_str() { return read() ? activeText : inactiveText; }
             inline void set(bool val) { fs << (int)val; }
             Pin(int, int);
