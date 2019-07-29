@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 				fprintf(stderr, "Options:\n -m\tPSK mode: 1=PSK31, 2=PSK63, 3=PSK125 (default 2)\n");
 				fprintf(stderr, " -f\tPSK audio frequency (default 2100)\n");
 				fprintf(stderr, " -v\tPSK audio volume (1-100, default 100)\n");
-				fprintf(stderr, " -p\tGPIO pin to use for PTT\n");
+				fprintf(stderr, " -p\tGPIO pin to use for PTT (negative for active low)\n");
 				fprintf(stderr, " -s\tOutput to stdout instead of aplay\n");
 				fprintf(stderr, " -?\tshow this help\n");
 				exit (EXIT_FAILURE);
