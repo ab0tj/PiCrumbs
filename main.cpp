@@ -22,7 +22,7 @@ void cleanup(int sign) {	// clean up after catching ctrl-c
 	delete beacon::led;
 	delete gps::led;
 	delete tnc.led;
-	delete pskPttPin;
+	delete psk::pttPin;
 	close(tnc.vhf_iface);
 	close(tnc.hf_iface);
 	close(console::iface);

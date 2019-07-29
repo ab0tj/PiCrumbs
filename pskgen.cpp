@@ -1,8 +1,11 @@
 #include "psk.h"
+#include "debug.h"
 #include <unistd.h>
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
+
+DebugStruct debug;
 
 int main(int argc, char* argv[]) {
 	const unsigned int samplerate = 8000;
@@ -10,9 +13,7 @@ int main(int argc, char* argv[]) {
 	unsigned int frequency = 2100;
 	const unsigned char bits = 8;
 	unsigned char volume = 100;
-	bool gpio_ptt = false;
-	unsigned char ptt_pin = 0;
-	SampleGenerator sine;
+	psk::SampleGenerator sine;
 	FILE* outfile;
 	bool use_stdout = false;
 	
@@ -38,10 +39,7 @@ int main(int argc, char* argv[]) {
 				break;
 			case 'p':
 				temp = atoi(optarg);
-				if (temp >= 0 && temp < 255) {
-					ptt_pin = temp;
-					gpio_ptt = true;
-				}
+				psk::pttPin = new gpio::Pin(temp, OUTPUT);
 				break;
 			case 's':
 				use_stdout = true;
@@ -51,7 +49,7 @@ int main(int argc, char* argv[]) {
 				fprintf(stderr, "Options:\n -m\tPSK mode: 1=PSK31, 2=PSK63, 3=PSK125 (default 2)\n");
 				fprintf(stderr, " -f\tPSK audio frequency (default 2100)\n");
 				fprintf(stderr, " -v\tPSK audio volume (1-100, default 100)\n");
-				fprintf(stderr, " -p\tRaspberry Pi GPIO pin for PTT\n");
+				fprintf(stderr, " -p\tGPIO pin to use for PTT\n");
 				fprintf(stderr, " -s\tOutput to stdout instead of aplay\n");
 				fprintf(stderr, " -?\tshow this help\n");
 				exit (EXIT_FAILURE);
@@ -67,22 +65,18 @@ int main(int argc, char* argv[]) {
 		outfile = popen("aplay -q", "w");
 	}
 	
-	if (gpio_ptt) {
-		wiringPiSetup();
-		pinMode(ptt_pin, OUTPUT);
-		digitalWrite(ptt_pin, 0);	// pull this line low for PTT
-	}
+	if (psk::pttPin != NULL) psk::pttPin->set(true);
 	
-	send_preamble(sine, outfile, baud);
+	psk::send_preamble(sine, outfile, baud);
 	
 	char c;
 	while (cin.get(c)) {	// send the message
-		send_psk_char(c, sine, outfile);
+		psk::send_char(c, sine, outfile);
 	}
 	
-	send_postamble(sine, outfile, baud);
+	psk::send_postamble(sine, outfile, baud);
 	
-	if (gpio_ptt) digitalWrite(ptt_pin, 1);	// turn off PTT
+	if (psk::pttPin != NULL) psk::pttPin->set(false);
 	
 	if (!use_stdout) pclose(outfile);
 	

@@ -181,7 +181,7 @@ void process_ax25_frame(string data) {		// listen for our own packets and update
 
 void* tnc_thread(void*) {	// monitor the vhf data stream
 	string buff = "";
-	char c;
+	unsigned char c;
 	bool escape = false;
 
 	for (;;) {

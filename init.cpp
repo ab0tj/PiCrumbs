@@ -178,7 +178,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (debug.verbose) printf("Operating as %s-%i\n", beacon::mycall.c_str(), beacon::myssid);
 // gpio config
 	tempInt = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
-	if (tempInt < 65536) pskPttPin = new gpio::Pin(tempInt, OUTPUT);
+	if (tempInt < 65536) psk::pttPin = new gpio::Pin(tempInt, OUTPUT);
  // tnc config
 	// vhf
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");

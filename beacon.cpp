@@ -58,15 +58,15 @@ namespace beacon
 				return send_aprsis_http(mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, payload);
 
 			case PSK63:
-				if (pskPttPin != NULL) {
-					send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, mycall.c_str(), myssid, PACKET_DEST, 0, payload.c_str());
+				if (psk::pttPin != NULL) {
+					psk::send_aprs(path.psk_freq, path.psk_vol, psk::pttPin, mycall.c_str(), myssid, PACKET_DEST, 0, payload.c_str());
 					return true;
 				}
 				return false;	// can't send psk without gpio (yet)
 
 			case PSKAndAX25:
-				if (!path.last_psk && pskPttPin != NULL) {	// send psk
-					send_psk_aprs(path.psk_freq, path.psk_vol, pskPttPin, mycall.c_str(), myssid, PACKET_DEST, 0, payload.c_str());
+				if (!path.last_psk && psk::pttPin != NULL) {	// send psk
+					psk::send_aprs(path.psk_freq, path.psk_vol, psk::pttPin, mycall.c_str(), myssid, PACKET_DEST, 0, payload.c_str());
 					path.last_psk = true;
 				} else {	// send 300bd
 					send_kiss_frame(true, mycall.c_str(), myssid, PACKET_DEST, 0, path.pathcalls, path.pathssids, payload);
