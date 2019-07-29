@@ -9,10 +9,10 @@ install: all
 	/usr/bin/install -D --mode=755 picrumbs /usr/local/bin/picrumbs
 
 picrumbs: $(PC_OBJS)
-	$(C) $(PC_OBJS) -lpthread -lhamlib -lhamlib++ -lwiringPi -lcurl -lgps -o picrumbs
+	$(C) $(PC_OBJS) -lpthread -lhamlib -lhamlib++ -lcurl -lgps -o picrumbs
 
 pskgen: $(PSK_OBJS)
-	$(C) $(PSK_OBJS) -lwiringPi -o pskgen
+	$(C) $(PSK_OBJS) -o pskgen
 
 beacon.o: beacon.cpp version.h
 	$(C) $(CFLAGS) -o beacon.o beacon.cpp

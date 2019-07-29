@@ -7,7 +7,7 @@ using namespace std;
 #define __HAMLIB_INC
 
 // INCLUDES
-#include <rigclass.h>
+#include <hamlib/rigclass.h>
 
 // FUNCTIONS
 bool tune_radio(freq_t, rmode_t);

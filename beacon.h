@@ -7,7 +7,7 @@ using namespace std;
 #define __BEACON_DEF
 // INCLUDES
 #include <vector>
-#include <rigclass.h>
+#include <hamlib/rigclass.h>
 #include "gpio.h"
 #include "sensor.h"
 

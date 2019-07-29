@@ -2,69 +2,93 @@
 #include "debug.h"
 #include <cstdlib>
 #include <cstdio>
-#include <wiringPi.h>
-#include <mcp23008.h>
-#include <mcp23017.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sstream>
+#include <iostream>
+#include <cstring>
+#include <cerrno>
+#include <unistd.h>
 
 namespace gpio
 {
-	bool setupDone;
 	vector<Led*> leds;
 
-	Pin::Pin(int pinNum, int mode, bool pullup)	// initialize a GPIO pin
+	template <typename T>
+	void writeVal(string fileName, T val)
 	{
-		if (!setupDone)
+		ofstream fs;
+		fs.open(fileName.c_str());
+		if (fs.fail())
 		{
-			wiringPiSetup();	// set up wiringPi if we haven't already
-			setupDone = true;
-		}			
+			cerr << "Failed to open " << fileName << ':' << strerror(errno) << '\n';
+			exit(EXIT_FAILURE);
+		}
+		fs << val;
+		fs.close();
+	}
+
+	Pin::Pin(int pinNum, int mode)	// initialize a GPIO pin
+	{
+		int active_low;
+		stringstream fileName_s;
+		string fileName;
 
 		if (pinNum < 0)	// negative value means active low
 		{
-			pin = pinNum * -1;
-			active_low = true;
+			pinNum *= -1;
+			active_low = 1;
 		}
 		else
 		{
-			pin = pinNum;
-			active_low = false;
+			active_low = 0;
 		}
 
-		pullUpDnControl(pin, pullup ? PUD_UP : PUD_OFF);
-		if (mode == OUTPUT) digitalWrite(pin, active_low);	// set initial value
-		pinMode(pin, mode);
+		fileName_s << "/sys/class/gpio/gpio" << pinNum;
+		fileName = fileName_s.str();
+		struct stat st;
+		if (stat(fileName.c_str(), &st) != 0) writeVal<int>("/sys/class/gpio/export", pinNum);
+
+		fileName_s << "/active_low";
+		fileName = fileName_s.str();
+		writeVal<int>(fileName, active_low);
+
+		fileName_s.str("");
+		fileName_s.clear();
+		fileName_s << "/sys/class/gpio/gpio" << pinNum << "/direction";
+		fileName = fileName_s.str();
+		writeVal<string>(fileName, mode == OUTPUT ? "out" : "in");
+
+		fileName_s.str("");
+		fileName_s.clear();
+		fileName_s << "/sys/class/gpio/gpio" << pinNum << "/value";
+		fileName = fileName_s.str();
+		fs.open(fileName, mode == OUTPUT ? ios::out : ios::in);
+
+		if (fs.fail())
+		{
+			cerr << "Failed to open " << fileName << ':' << strerror(errno) << '\n';
+			exit(EXIT_FAILURE);
+		}
 
 		activeText = "";
 		inactiveText = "";
 
-		if (debug.verbose) printf("Initialized GPIO pin %d (%sput, active %s, pullup %s)\n", pin, mode == OUTPUT ? "out" : "in", active_low ? "low" : "high", pullup ? "on" : "off");
+		if (debug.verbose) printf("Initialized GPIO pin %d (%sput, active %s)\n", pinNum, mode == OUTPUT ? "out" : "in", active_low ? "low" : "high");
 	}
 
 	Pin::~Pin()
 	{
-		pinMode(pin, INPUT);
-	}
-
-	void Pin::set(bool val)	// set GPIO pin to the requested value
-	{
-		val ^= active_low;			// invert if active low
-		digitalWrite(pin, val);
-	}
-
-	bool Pin::read()
-	{
-		bool val;
-		val = digitalRead(pin);
-		val ^= active_low;
-		return val;
+		fs.close();
 	}
 
 	Led::Led(int pin1, int pin2)
 	{
-		greenPin = new Pin(pin1, OUTPUT, false);
+		greenPin = new Pin(pin1, OUTPUT);
 		if (pin2 < 65536)
 		{
-			redPin = new Pin(pin2, OUTPUT, false);
+			redPin = new Pin(pin2, OUTPUT);
 			biColor = true;
 		}
 		else biColor = false;
@@ -140,25 +164,6 @@ namespace gpio
 		blink = b;
 		blinkColor = bc;
 		if (update) setPins(c);
-	}
-
-	void initExpander(ExpanderType type, int address, int pinBase)
-	{
-		string name;
-
-		switch (type)
-		{
-			case MCP23008:
-				name = "MCP23008";
-				mcp23008Setup(pinBase, address);
-				break;
-			case MCP23017:
-				name = "MCP23017";
-				mcp23017Setup(pinBase, address);
-				break;
-		}
-
-		if (debug.verbose) printf("Initialized %s expander at 0x%02X\n", name.c_str(), address);
 	}
 
 	void* gpio_thread(void*)

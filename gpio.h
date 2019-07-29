@@ -9,26 +9,28 @@ using namespace std;
 #include <string>
 #include <vector>
 #include <mutex>
+#include <fstream>
+
+#define INPUT   0
+#define OUTPUT  1
 
 namespace gpio
 {
-    enum ExpanderType { MCP23008 = 0, MCP23017 = 1 };
     enum LedColor { LedOff, Red, Green };
     enum LedBlink { Solid, BlinkOnce, Blink };
 
     class Pin
     {
         private:
-            int pin;
-            bool active_low;
+            fstream fs;
 
         public:
             string activeText;
             string inactiveText;
-            void set(bool);
-            bool read();
+            inline bool read() { return fs.get() == '1'; }
             inline string read_str() { return read() ? activeText : inactiveText; }
-            Pin(int, int, bool);
+            inline void set(bool val) { fs << (int)val; }
+            Pin(int, int);
             ~Pin();
     };
 
@@ -55,7 +57,6 @@ namespace gpio
     };
     extern vector<Led*> leds;
 
-    void initExpander(ExpanderType, int, int);
     void* gpio_thread(void*);
 };
 #endif

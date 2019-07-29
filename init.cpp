@@ -6,9 +6,7 @@
 #include <cstring>
 #include <sstream>
 #include <vector>
-#include <rigclass.h>
 #include <curl/curl.h>
-#include <wiringPi.h>
 #include "INIReader.h"
 #include "init.h"
 #include "version.h"
@@ -121,7 +119,6 @@ int open_port(string name, string port, int baud, bool blocking, bool canon) {		
 
 void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	int tempInt, tempInt1, tempInt2;
-	int tempBool;
 	string tempString;
 	string configfile = "/etc/picrumbs.conf";
 	HAMLIB_API::rig_set_debug(RIG_DEBUG_NONE);	// tell hamlib to STFU unless asked
@@ -180,12 +177,8 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 	if (beacon::myssid > 15) printf("WARNING: SSID not valid for AX25 (it should be 0-15). Expect weirdness if used on packet paths.\n");
 	if (debug.verbose) printf("Operating as %s-%i\n", beacon::mycall.c_str(), beacon::myssid);
 // gpio config
-	tempInt = readconfig.GetInteger("gpio", "expander", -1);
-	tempInt1 = strtol(readconfig.Get("gpio", "expander_addr", "-1").c_str(), NULL, 16);
-	tempInt2 = readconfig.GetInteger("gpio", "expander_pinbase", -1);
-	if (tempInt != -1) gpio::initExpander((gpio::ExpanderType)tempInt, tempInt1, tempInt2);
 	tempInt = readconfig.GetInteger("gpio", "psk_ptt_pin", 65536);
-	if (tempInt < 65536) pskPttPin = new gpio::Pin(tempInt, OUTPUT, false);
+	if (tempInt < 65536) pskPttPin = new gpio::Pin(tempInt, OUTPUT);
  // tnc config
 	// vhf
 	string vhf_tnc_port = readconfig.Get("vhf_tnc", "port", "/dev/ttyS0");
@@ -265,8 +258,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		tempInt = readconfig.GetInteger(pin_s, "pin", 65536);
 		if (tempInt < 65536)
 		{
-			tempBool = readconfig.GetBoolean(pin_s, "pullup", false);
-			beacon::pins[i] = new gpio::Pin(tempInt, INPUT, tempBool);
+			beacon::pins[i] = new gpio::Pin(tempInt, INPUT);
 			beacon::pins[i]->activeText.assign(readconfig.Get(pin_s, "active_text", "1"));
 			beacon::pins[i]->inactiveText.assign(readconfig.Get(pin_s, "inactive_text", "0"));
 		}
@@ -324,8 +316,7 @@ void init(int argc, char* argv[]) {		// read config, set up serial ports, etc
 		thispath.comment = readconfig.Get(path_s, "comment", "");
 		thispath.usePathComment = readconfig.HasValue(path_s, "comment");
 		tempInt = readconfig.GetInteger(path_s, "enablepin", 65536);
-		tempBool = readconfig.GetBoolean(path_s, "pullup", false);
-		if (tempInt < 65536) thispath.enablePin = new gpio::Pin(tempInt, INPUT, tempBool);
+		if (tempInt < 65536) thispath.enablePin = new gpio::Pin(tempInt, INPUT);
 		
 		thispath.attempt = 0;
 		thispath.success = 0;

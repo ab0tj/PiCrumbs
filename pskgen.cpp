@@ -1,5 +1,4 @@
 #include "psk.h"
-#include <wiringPi.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <cstdio>
