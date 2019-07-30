@@ -1,5 +1,5 @@
 C=g++
-CFLAGS=-c -Wall
+CFLAGS=-c -Wall -Wno-psabi
 PC_OBJS=beacon.o console.o gps.o hamlib.o http.o init.o main.o gpio.o predict.o psk.o stringfuncs.o tnc.o INIReader.o varicode.o ini.o sensor.o
 PSK_OBJS=psk.o pskgen.o varicode.o gpio.o
 
