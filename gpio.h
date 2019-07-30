@@ -24,13 +24,14 @@ namespace gpio
     {
         private:
             fstream fs;
+            uint pin_num;
 
         public:
             string activeText;
             string inactiveText;
             inline bool read() { fs.seekg(0); return fs.get() == '1'; }
             inline string read_str() { return read() ? activeText : inactiveText; }
-            inline void set(bool val) { fs << (int)val; }
+            inline void set(bool val) { fs << (int)val; fs.flush(); }
             Pin(int, int);
             ~Pin();
     };

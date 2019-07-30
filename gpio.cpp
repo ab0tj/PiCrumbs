@@ -45,6 +45,8 @@ namespace gpio
 			active_low = 0;
 		}
 
+		pin_num = pinNum;
+
 		fileName_s << "/sys/class/gpio/gpio" << pinNum;
 		fileName = fileName_s.str();
 		struct stat st;
@@ -69,6 +71,7 @@ namespace gpio
 	Pin::~Pin()
 	{
 		fs.close();
+		writeVal<int>("/sys/class/gpio/unexport", pin_num);
 	}
 
 	Led::Led(int pin1, int pin2)
