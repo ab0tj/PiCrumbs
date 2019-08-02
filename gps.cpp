@@ -52,6 +52,7 @@ namespace gps
 				currentPos.valid = false;
 				if (led != NULL) led->set(gpio::Red);
 				fprintf(stderr, "GPS read error.\n");
+				sleep(1);
 				posLock.unlock();
 				continue;
 			} else if (newdata->fix.mode > 1) {		// good fix
