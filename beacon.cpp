@@ -302,7 +302,7 @@ namespace beacon
 		{
 			case Position:
 				// blink the led while we try to send a packet
-				led->set(gpio::LedOff, gpio::Blink, led->isBicolor() ? led->getColor() : gpio::Green);
+				if (led != NULL) led->set(gpio::LedOff, gpio::Blink, led->isBicolor() ? led->getColor() : gpio::Green);
 				path = path_select_beacon();	// send a beacon and do some housekeeping afterward
 				if (path != -1)
 				{
