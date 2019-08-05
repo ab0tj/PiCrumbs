@@ -124,6 +124,7 @@ namespace beacon
 						struct tm* timeinfo;
 						time(&rawtime);
 						timeinfo = gmtime(&rawtime);
+						if (timeinfo->tm_year < (RELEASE_YEAR - 1900)) break;	// assume date is invalid
 						strftime(zulu, 8, "%d%H%Mz", timeinfo);
 						buff << zulu;
 						i += 1;
@@ -336,7 +337,7 @@ namespace beacon
 					break;
 				}
 				
-				if (tune_radio(aprs_paths[path].freq, aprs_paths[path].mode))
+				if (aprs_paths[path].proto == APRS_IS || tune_radio(aprs_paths[path].freq, aprs_paths[path].mode))
 				{
 					send_packet(aprs_paths[status_path], ">" + parseComment(status));
 					sleep(5);	// give time for the packet to transmit

@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 
 	if (gps::enabled) {
 		pthread_t gps_t;
-		pthread_create(&gps_t, NULL, &gps::gps_thread, NULL);	// start the gps interface thread if the gps interface was opened
+		pthread_create(&gps_t, NULL, &gps::gps_thread, NULL);	// start the gps interface thread if gps is enabled
 	}
 
 	if (console::iface > 0) {	// start the console interface if the port was opened

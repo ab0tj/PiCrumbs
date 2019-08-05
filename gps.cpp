@@ -26,7 +26,7 @@ namespace gps
 		if (gps_rec.stream(WATCH_ENABLE | WATCH_JSON) == NULL) {
 			fprintf(stderr, "GPSD is not running.\n");
 			if (led != NULL) led->set(gpio::Red);
-			return 0;
+			exit(1);
 		}
 
 		currentPos.spdUnitName = new char[4];
