@@ -86,7 +86,6 @@ namespace console
 					buff_out << "Beacon successfully sent on path " << path + 1 << '.';
 					conPrint(buff_out.str() + "\r\n");
 				}
-				if (path != 0) tune_radio(beacon::aprs_paths[0].freq, beacon::aprs_paths[0].mode);	// retune if necessary
 			}
 			
 			else if (param.compare("mycall") == 0) {

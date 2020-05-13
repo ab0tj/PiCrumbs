@@ -8,7 +8,7 @@ bool tune_radio(freq_t freq, rmode_t mode) {		// use hamlib to tune the radio
 	if (!hamlib.enabled) return true;	// don't try to do tuning stuff if we can't
 
 	try {
-		if (hamlib.radio->getFreq() == freq) return true; // skip if already set
+		//if (hamlib.radio->getFreq() == freq) return true; // skip if already set
 		if (debug.hl) printf("HL_DEBUG: Tuning radio to %.0f\n", freq);
 		hamlib.radio->setFreq(Hz(freq));
 		hamlib.radio->setMode(mode);
